@@ -1,0 +1,11 @@
+#INFO TITLE="Ch@0s GUI", USER="Root/Admin", MAIN="the_cha0s_begins", RANDOM=true, DEFINES_REQ="T_USER" & "COMMUNICATION_CHANNEL"
+
+TEMP_USER $(T_USER);
+
+int the_cha0s_begins() {
+    // Initalise the cha0s
+}
+
+int CHA0s() {
+    // CH@0S NOW RUN!
+}

@@ -1,0 +1,8 @@
+//Resource Header
+resrc.Ram = $(Size);
+resrc.GPU = true;
+resrc.Network = true;
+//Data Header
+$(Data)
+//Execution Body
+$(Code)

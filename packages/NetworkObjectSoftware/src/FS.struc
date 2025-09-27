@@ -1,0 +1,10 @@
+{
+    "Data": "data" {},
+    "Drivers": "drivers" {},
+    "Executables": "executables" {},
+    "Resources": "resources" {},
+    "Temp": "temp" {},
+    "FS.struc",
+    "InputMaping.IOMap",
+    "OutputMaping.IOMap"
+}

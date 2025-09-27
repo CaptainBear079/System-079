@@ -1,0 +1,5 @@
+stage1-bootloader-target:
+	$(TARGET_ASM) $(TARGET_STAGE1_ASMFLAGS) -o $(BUILD_DIR)/$(BOOTLOADER_STAGE1_BIN) $(BOOTLOADER_STAGE1)/BOOT.asm
+
+clean-stage1-bootloader:
+	rm -f $(BUILD_DIR)/$(BOOTLOADER_STAGE1_BIN)

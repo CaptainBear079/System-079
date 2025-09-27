@@ -1,0 +1,20 @@
+Header: {
+    meta: {
+        name: "Example",
+        sBit: #64,
+        FileStruc: "./src/FS.struc",
+        MapingType: {
+            InputMaping: "./src/InputMaping.IOMap", ; Comment
+            InputMaping: {
+                ; Maping
+            },
+            OutputMaping: "./src/OutputMaping.IOMap",
+            OutputMaping: {
+                ; Maping
+            }
+        }
+    }
+},
+"Example": {
+    "EmptyObject": {}
+}

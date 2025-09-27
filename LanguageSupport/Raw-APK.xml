@@ -1,0 +1,64 @@
+<NotepadPlus>
+    <UserLang name="Raw-APK" ext="rapk" udlVersion="2.1">
+        <Settings>
+            <Global caseIgnored="yes" allowFoldOfComments="no" foldCompact="no" forcePureLC="0" decimalSeparator="0" />
+            <Prefix Keywords1="no" Keywords2="no" Keywords3="no" Keywords4="no" Keywords5="yes" Keywords6="no" Keywords7="no" Keywords8="no" />
+        </Settings>
+        <KeywordLists>
+            <Keywords name="Comments">00// 01 02 03 04</Keywords>
+            <Keywords name="Numbers, prefix1"></Keywords>
+            <Keywords name="Numbers, prefix2"></Keywords>
+            <Keywords name="Numbers, extras1"></Keywords>
+            <Keywords name="Numbers, extras2"></Keywords>
+            <Keywords name="Numbers, suffix1"></Keywords>
+            <Keywords name="Numbers, suffix2"></Keywords>
+            <Keywords name="Numbers, range"></Keywords>
+            <Keywords name="Operators1">+ - * / ( ) = . , @ == ! ; &amp;&amp;</Keywords>
+            <Keywords name="Operators2"></Keywords>
+            <Keywords name="Folders in code1, open">{ [</Keywords>
+            <Keywords name="Folders in code1, middle"></Keywords>
+            <Keywords name="Folders in code1, close">} ]</Keywords>
+            <Keywords name="Folders in code2, open"></Keywords>
+            <Keywords name="Folders in code2, middle"></Keywords>
+            <Keywords name="Folders in code2, close"></Keywords>
+            <Keywords name="Folders in comment, open">/*</Keywords>
+            <Keywords name="Folders in comment, middle"></Keywords>
+            <Keywords name="Folders in comment, close">*/</Keywords>
+            <Keywords name="Keywords1">#include&#x000D;&#x000A;#define&#x000D;&#x000A;#if&#x000D;&#x000A;#ifndef&#x000D;&#x000A;#endif</Keywords>
+            <Keywords name="Keywords2">int&#x000D;&#x000A;bool&#x000D;&#x000A;true&#x000D;&#x000A;qword&#x000D;&#x000A;QWORD&#x000D;&#x000A;dword&#x000D;&#x000A;DWORD&#x000D;&#x000A;word&#x000D;&#x000A;WORD&#x000D;&#x000A;byte&#x000D;&#x000A;BYTE&#x000D;&#x000A;ar&#x000D;&#x000A;AR&#x000D;&#x000A;BaseConstructor&#x000D;&#x000A;overwrite</Keywords>
+            <Keywords name="Keywords3">SysOBJ&#x000D;&#x000A;System&#x000D;&#x000A;Games&#x000D;&#x000A;Asm&#x000D;&#x000A;add</Keywords>
+            <Keywords name="Keywords4">main&#x000D;&#x000A;init&#x000D;&#x000A;CheckVM&#x000D;&#x000A;Create3DSpace&#x000D;&#x000A;init_HARDWARE&#x000D;&#x000A;print&#x000D;&#x000A;printt&#x000D;&#x000A;cl&#x000D;&#x000A;SUCESS&#x000D;&#x000A;2D_Animation&#x000D;&#x000A;3D_Animation&#x000D;&#x000A;2D_3D_Animation&#x000D;&#x000A;2D_Game&#x000D;&#x000A;3D_Game&#x000D;&#x000A;VR_Game&#x000D;&#x000A;AR_Game&#x000D;&#x000A;2D_3D_Game&#x000D;&#x000A;2D_3D_AR_Game&#x000D;&#x000A;VM_cant_be_runned</Keywords>
+            <Keywords name="Keywords5">0x&#x000D;&#x000A;label_</Keywords>
+            <Keywords name="Keywords6">if&#x000D;&#x000A;return</Keywords>
+            <Keywords name="Keywords7"></Keywords>
+            <Keywords name="Keywords8"></Keywords>
+            <Keywords name="Delimiters">00&quot; 01 02&quot; 03&lt; 04 05&gt; 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</Keywords>
+        </KeywordLists>
+        <Styles>
+            <WordsStyle name="DEFAULT" fgColor="808080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="COMMENTS" fgColor="000000" bgColor="FFFFFF" fontStyle="3" nesting="0" />
+            <WordsStyle name="LINE COMMENTS" fgColor="008000" bgColor="FFFFFF" colorStyle="1" fontStyle="3" nesting="0" />
+            <WordsStyle name="NUMBERS" fgColor="FF0080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS1" fgColor="808080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS2" fgColor="0000FF" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS3" fgColor="FF0000" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS4" fgColor="FFFF00" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS5" fgColor="FF8000" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS6" fgColor="800080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS7" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="KEYWORDS8" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="OPERATORS" fgColor="800080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE1" fgColor="800080" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE2" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN COMMENT" fgColor="008000" bgColor="FFFFFF" colorStyle="1" fontName="BN Machine" fontStyle="2" nesting="0" />
+            <WordsStyle name="DELIMITERS1" fgColor="FF8040" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS2" fgColor="FF8040" bgColor="FFFFFF" colorStyle="1" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS3" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS4" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS5" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS6" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS7" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS8" fgColor="000000" bgColor="FFFFFF" fontStyle="0" nesting="0" />
+        </Styles>
+    </UserLang>
+</NotepadPlus>

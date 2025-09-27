@@ -1,0 +1,7 @@
+// RGBA Digital Swap Screen
+RGBA.dynamic swap_screen_1[720][1280] = { {} };
+RGBA.dynamic swap_screen_2[720][1280] = { {} };
+
+// Screen Pointer
+Update.bool SSPtr = SysSwapValue();
+RGBA.ptr SwapScreenPtrs[2] = { swap_screen_1, swap_screen_2 };

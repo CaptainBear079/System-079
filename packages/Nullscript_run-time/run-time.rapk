@@ -1,0 +1,44 @@
+#include "RGBA_DSS"
+
+// Text buffer pointers
+ptr WRITE_POINTER_READ;
+ptr WRITE_POINTER_WRITE;
+
+// RGBA Digital Swap Screen
+RGBA.dynamic swap_screen_1[720][1280] = { {} };
+RGBA.dynamic swap_screen_2[720][1280] = { {} };
+
+// Screen Pointer
+Update.bool SSPtr = SysSwapValue();
+RGBA.ptr SwapScreenPtrs[2] = { swap_screen_1, swap_screen_2 };
+
+// 079.AI START LABEL
+System overwrite System.ASM.START = PC .start() {
+    MessageBox("Booting up...");
+    #BITS 16
+    Message("Booting...", BIT_16, WRITE_POINTER_READ, WRITE_POINTER_WRITE);
+	System.Memory.Config(1024);
+	Interupt.Devices.Maping();
+    Interupt.System.Config(OS);
+	Kernel();
+}
+
+Syscall.Shutdown Kernel() {
+    // Init Command Line
+    // Init Explorer
+	// Init Gui
+}
+
+// Main function
+overwrite System.main = System main(int argc, int argv, SysOBJ process) {
+    System.init(2D_3D_AR_Game, true, true, process);
+}
+
+overwrite System.init = System init(BaseConstructor label_00000, bool Uses_AI, bool Runs_in_a_Virtual_Maschine, SysOBJ process) {
+    if(Runs_in_a_Virtual_Maschine == true && (!System.CheckVM() == true)) {
+	    return VM_cant_be_runned;
+	}
+	Games.Create3DSpace(process, DWORD);
+	System.Games.init_HARDWARE(AR);
+	return SUCESS;
+}

@@ -1,0 +1,35 @@
+Users: {
+    "Warning": {
+        "UserID": ,
+        "WarningID": 1,
+        "Reason": "",
+    }
+    "Ban": {
+        "UserID": ,
+        "UserBanID": 1,
+        "BanState": ,
+        "Expiration": "German Time 2026-01-01 00:00:00",
+        "ReasonCount": 1,
+        "Reason": ""
+    }
+},
+Groups: {
+    "Banned": {
+        "GroupName": "UTTP",
+        "BanID": 1,
+        "BanState": Permanent,
+        "Expiration": "German Time 2026-01-01 00:00:00",
+        "ReasonCount": 3,
+        "Reason": "Banned for Spamming on other platforms,",
+        "Reason": "lecking personal information,",
+        "Reason": "and violence against Chidren."
+     },
+     "Banned": {
+        "GroupName": ,
+        "BanID": 2,
+        "BanState": ,
+        "Expiration": "German Time 2026-01-01 00:00:00",
+        "ReasonCount": 1,
+        "Reason": ""
+     }
+}
