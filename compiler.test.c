@@ -505,6 +505,7 @@ int compile(File* finput, uint32_t input_File_count) {
 	char* code_buffer = malloc(256 * sizeof(char));
 	char* code_temp_buffer = malloc(256 * sizeof(char));
 	char* str_buffer = malloc(4096 * sizeof(char));
+	int _i = 0;
 	int c;
 	for(int fi = 0; fi < input_File_count; fi++) {
 		// Set temporary FILE*
@@ -523,11 +524,12 @@ int compile(File* finput, uint32_t input_File_count) {
 				code_buffer[255] = '\0';
 				if(isdigit(code_buffer[0])) {
 					code_temp_buffer[0] = code_buffer[0];
-					int i;
+					PARSE_NUMBER:
+					_i = 1;
 					for(int ii = 1; ii < 255; ii++) {
-						if(isdigit(code_buffer[i])) {
+						if(isdigit(code_buffer[_i])) {
 							code_temp_buffer[ii] = code_buffer[ii];
-							i = ii;
+							_i = ii;
 						}
 						else {
 							printf("[ERROR] Invalid number.");
@@ -535,14 +537,51 @@ int compile(File* finput, uint32_t input_File_count) {
 						}
 					}
 					int number = 0;
-					for(int times = 1; i >= 0; i--) {
-						number = number + (code_temp_buffer[i] * times);
+					for(int times = 1; _i >= 0; _i--) {
+						number = number + (code_temp_buffer[_i] * times);
 						times = times * 10;
 					}
 
 					TOKEN t_token = { TOKEN_TYPE__CONST_UINT, number };
 					t_instruction_count = instruction_count;
 					inst[t_instruction_count] = t_token;
+				}
+				else {
+					char* buf = code_buffer;
+					switch((int)*buf) {
+						case (int)'\0': {
+							// End - WIP
+						} break;
+						case (int)'+': {
+							// Plus operator or positiv number (unsigned int) or append operator or bad programming
+							_i++;
+							buf++;
+							switch((int)*buf) {
+								case (int)'\0': {
+									// End - WIP
+								} break;
+								case (int)' ': {
+									// Plus operator
+								} break;
+								default: {
+									// Positiv number (unsigned int) or bad programming
+									if(isdigit(*buf)) {
+										// Positiv number (unsigned int)
+										goto PARSE_NUMBER;
+									}
+									else if(isalpha(*buf)) {
+										// Bad programming (Use the damn SPACE)
+										goto PARSE_IDENTIFIER;
+									}
+								} break;
+							}
+						} break;
+						default: {
+							PARSE_IDENTIFIER:
+							printf("[ERROR] \"%s\" is not a keyword or identifier.", code_buffer);
+							return -1;
+						} break;
+					}
 				}
 			}
 			else {
