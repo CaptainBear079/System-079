@@ -6,8 +6,22 @@
 #include <ctype.h>
 
 enum TOKEN_TYPES {
+	TOKEN_TYPE__COMMAND_START,
+	TOKEN_TYPE__COMMAND_START_KEYWORD_FAIL,
+	TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL,
+	TOKEN_TYPE__COMMAND_START_CONSTANT_FAIL,
+	TOKEN_TYPE__COMMAND_END,
 	TOKEN_TYPE__CONST_UINT,
-	TOKEN_TYPE__VAR_UINT
+	TOKEN_TYPE__CONST_INT,
+	TOKEN_TYPE__VAR_UINT,
+	TOKEN_TYPE__VAR_INT,
+	TOKEN_TYPE__ADD,
+	TOKEN_TYPE__SET,
+	TOKEN_TYPE__NEW_VAR_IDENTIFIER,
+	TOKEN_TYPE__IDENTIFIER,
+	TOKEN_TYPE__OPERATOR_SET,
+	TOKEN_TYPE__OPERATOR_EQUALS,
+	TOKEN_TYPE__FUNCTION
 };
 
 typedef struct _File_ {
@@ -18,9 +32,16 @@ typedef struct _Def_ {
     char* str;
 } Def;
 
+typedef struct _IDENTIFIER_ {
+	char* name;
+	bool set_by_malloc;
+	char* type;
+} IDENTIFIER;
+
 typedef struct _TOKEN_ {
 	uint32_t type;
 	uint32_t value;
+	IDENTIFIER* identifier;
 } TOKEN;
 
 typedef struct _PRE_INFO_ {
@@ -95,6 +116,8 @@ uint32_t max_input_files;
 
 TOKEN* inst;
 uint32_t instruction_count;
+IDENTIFIER* identifier;
+uint32_t identifier_count;
 
 char** preprocessed_files;
 
@@ -131,7 +154,9 @@ int main(int argc, char* argv[]) {
 		max_input_files   = 100;
 	}
 	
-	inst = malloc(65536 * sizeof(TOKEN));
+	inst = malloc(max_inst_count * sizeof(TOKEN));
+
+	identifier = malloc(1024 * sizeof(IDENTIFIER));
 
     char standardout[4096];  // Make sure this is large enough
     snprintf(standardout, sizeof(standardout), "%s/a.out", argv[0]);
@@ -333,8 +358,7 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 				char t_c = (char)c;
 				c = fgetc(t_fptr);
 				if(c == EOF) {
-					printf("[ERROR] Uncomplette pre-processor directiv.");
-					return -2; // Problem between chair and keyboard
+					goto ERROR_PCK;
 				}
 				else if(isdigit((char)c)) {
 					// Write the number in the pre-processed file
@@ -351,22 +375,19 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 							// Directive only can be #INFO or an invalid
 							c = fgetc(t_fptr);
 							if(c == EOF) {
-								printf("[ERROR] Uncomplette pre-processor directiv.");
-								return -2; // Problem between chair and keyboard
+								goto ERROR_PCK;
 							}
 							switch(c) {
 								case (int)'N': {
 									c = fgetc(t_fptr);
 									if(c == EOF) {
-										printf("[ERROR] Uncomplette pre-processor directiv.");
-										return -2; // Problem between chair and keyboard
+										goto ERROR_PCK;
 									}
 									switch(c) {
 										case (int)'F': {
 											c = fgetc(t_fptr);
 											if(c == EOF) {
-												printf("[ERROR] Uncomplette pre-processor directiv.");
-												return -2; // Problem between chair and keyboard
+												goto ERROR_PCK;
 											}
 											switch(c) {
 												case (int)'O': {
@@ -376,8 +397,7 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 													for(int i = 0; i < (128 + 1); i++) {
 														c = fgetc(t_fptr);
 														if(c == EOF) {
-															printf("[ERROR] Uncomplette pre-processor directiv.");
-															return -2; // Problem between chair and keyboard
+															goto ERROR_PCK;
 														}
 														str[i] = (char)c;
 													}
@@ -390,15 +410,13 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 														char str2[128];
 														c = fgetc(t_fptr);
 														if(c == EOF) {
-															printf("[ERROR] Uncomplette pre-processor directiv.");
-															return -2; // Problem between chair and keyboard
+															goto ERROR_PCK;
 														}
 														if((char)c == '\"') {
 															for(int i = 0; i < (128 + 1); i++) {
 																c = fgetc(t_fptr);
 																if(c == EOF) {
-																	printf("[ERROR] Uncomplette pre-processor directiv.");
-																	return -2; // Problem between chair and keyboard
+																	goto ERROR_PCK;
 																}
 																str2[i] = (char)c;
 															}
@@ -420,8 +438,7 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 													for(int i = 0; i < (128 + 1); i++) {
 														c = fgetc(t_fptr);
 											if(c == EOF) {
-												printf("[ERROR] Uncomplette pre-processor directiv.");
-												return -2; // Problem between chair and keyboard
+												goto ERROR_PCK;
 											}
 														str[i] = (char)c;
 													}
@@ -434,15 +451,13 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 														char str2[128];
 														c = fgetc(t_fptr);
 														if(c == EOF) {
-															printf("[ERROR] Uncomplette pre-processor directiv.");
-															return -2; // Problem between chair and keyboard
+															goto ERROR_PCK;
 														}
 														if((char)c == '\"') {
 															for(int i = 0; i < (128 + 1); i++) {
 																c = fgetc(t_fptr);
 																if(c == EOF) {
-																	printf("[ERROR] Uncomplette pre-processor directiv.");
-																	return -2; // Problem between chair and keyboard
+																	goto ERROR_PCK;
 																}
 																str2[i] = (char)c;
 															}
@@ -464,24 +479,22 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 
 												} break;
 												default: {
-													printf("[ERROR] Invalid or uncomplette pre-processor directiv.");
-													return -2; // Problem between chair and keyboard
+													goto ERROR_PCK;
 												} break;
 											}
 										} break;
 										default: {
-											printf("[ERROR] Invalid or uncomplette pre-processor directiv.");
-											return -2; // Problem between chair and keyboard
+											goto ERROR_PCK;
 										} break;
 									}
 								} break;
 								default: {
-									printf("[ERROR] Invalid or uncomplette pre-processor directiv.");
-									return -2; // Problem between chair and keyboard
+									goto ERROR_PCK;
 								} break;
 							}
 						} break;
 						default: {
+							ERROR_PCK:
 							printf("[ERROR] Invalid or uncomplette pre-processor directiv.");
 							return -2; // Problem between chair and keyboard
 						} break;
@@ -499,95 +512,254 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 	}
 }
 
+int compile__PARSE_LOOP(
+				uint32_t* t_instruction_count,
+				char** code_buffer,
+				TOKEN* t_token,
+				TOKEN* last_token,
+				int* _i,
+				int* c,
+				FILE** t_fptr
+			) {
+	PARSE_LOOP:
+	// Read
+	*c = fgetc(*t_fptr);
+	PARSE_LOOP_WITHOUT_FETCH:
+	if(c == EOF) {
+		if(*_i == 0) {
+			return 0;
+		}
+	}
+	else if((char)*c == '=') {
+		// Set or equals
+		*code_buffer[*_i] = (char)*c;
+		*_i++;
+		*c = fgetc(*t_fptr);
+		if((char)*c == '=') {
+			*code_buffer[*_i] = (char)*c;
+			*_i++;
+		}
+		else {
+			// Set
+		}
+	}
+	*code_buffer[*_i] = '\0';
+	*_i++;
+
+	NO_LAST_TOKEN:
+	// Check for EOF
+	if (c == EOF) {
+		return 0;
+	}
+	// Parse keyword - WIP
+	else if(last_token->type == TOKEN_TYPE__COMMAND_START) {
+		if(strcmp(*code_buffer, "int") == 0) {
+			t_token->type = TOKEN_TYPE__VAR_INT;
+			t_token->identifier = &identifier[identifier_count];
+			t_token->value = &inst[*t_instruction_count + 1];
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+			*_i = 0;
+			goto PARSE_LOOP;
+		}
+	}
+	// Parse Operators
+	else if(last_token->type == TOKEN_TYPE__COMMAND_START_KEYWORD_FAIL || last_token->type == TOKEN_TYPE__NEW_VAR_IDENTIFIER) {
+		if(strcmp(*code_buffer, ";") == 0) {
+			t_token->type = TOKEN_TYPE__COMMAND_END;
+			t_token->identifier = NULL;
+			t_token->value = 0;
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+		}
+		else if(strcmp(*code_buffer, "=") == 0) {
+			t_token->type = TOKEN_TYPE__OPERATOR_SET;
+			t_token->identifier = NULL;
+			t_token->value = 0;
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+		}
+		else if(strcmp(*code_buffer, "==") == 0) {
+			t_token->type = TOKEN_TYPE__OPERATOR_EQUALS;
+			t_token->identifier = NULL;
+			t_token->value = 0;
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+		}
+		else if(strcmp(*code_buffer, "+") == 0) {
+			t_token->type = TOKEN_TYPE__ADD;
+			t_token->identifier = NULL;
+			t_token->value = 0;
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+		}
+		else {
+			t_token->type = TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL;
+			t_token->identifier = NULL;
+			t_token->value = 0;
+			inst[*t_instruction_count] = *t_token;
+			*last_token = *t_token;
+		}
+	}
+	// Parse constants - WIP
+	else if(last_token->type == TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL || last_token->type == TOKEN_TYPE__SET) {
+		if(*code_buffer[0] == '0') {
+			if(*code_buffer[1] == 'x') {
+				int number = 0;
+				for(int times = 16; *_i > 1; *_i--) {
+					switch((int)*code_buffer[*_i]) {
+						case (int)'0': {
+							number = number + (0 * times);
+						} break;
+						case (int)'1': {
+							number = number + (1 * times);
+						} break;
+						case (int)'2': {
+							number = number + (2 * times);
+						} break;
+						case (int)'3': {
+							number = number + (3 * times);
+						} break;
+						case (int)'4': {
+							number = number + (4 * times);
+						} break;
+						case (int)'5': {
+							number = number + (5 * times);
+						} break;
+						case (int)'6': {
+							number = number + (6 * times);
+						} break;
+						case (int)'7': {
+							number = number + (7 * times);
+						} break;
+						case (int)'8': {
+							number = number + (8 * times);
+						} break;
+						case (int)'9': {
+							number = number + (9 * times);
+						} break;
+						case (int)'A':
+						case (int)'a': {
+							number = number + (10 * times);
+						} break;
+						case (int)'B':
+						case (int)'b': {
+							number = number + (11 * times);
+						} break;
+						case (int)'C':
+						case (int)'c': {
+							number = number + (12 * times);
+						} break;
+						case (int)'D':
+						case (int)'d': {
+							number = number + (13 * times);
+						} break;
+						case (int)'E':
+						case (int)'e': {
+							number = number + (14 * times);
+						} break;
+						case (int)'F':
+						case (int)'f': {
+							number = number + (15 * times);
+						} break;
+
+						default: {
+							return -2;
+						} break;
+					}
+					times = times * 16;
+				}
+			}
+		}
+		else if(isdigit(*code_buffer[0])) {
+			int number = 0;
+			for(int times = 10; *_i > -1; *_i++) {
+				switch((int)*code_buffer[*_i]) {
+					case (int)'0': {
+						number = number + (0 * times);
+					} break;
+					case (int)'1': {
+						number = number + (1 * times);
+					} break;
+					case (int)'2': {
+						number = number + (2 * times);
+					} break;
+					case (int)'3': {
+						number = number + (3 * times);
+					} break;
+					case (int)'4': {
+						number = number + (4 * times);
+					} break;
+					case (int)'5': {
+						number = number + (5 * times);
+					} break;
+					case (int)'6': {
+						number = number + (6 * times);
+					} break;
+					case (int)'7': {
+						number = number + (7 * times);
+					} break;
+					case (int)'8': {
+						number = number + (8 * times);
+					} break;
+					case (int)'9': {
+						number = number + (9 * times);
+					} break;
+					default: {
+						return -2;
+					}
+				}
+			}
+		}
+	}
+	// Parse identifier - WIP
+	else if(last_token->type == TOKEN_TYPE__COMMAND_START_CONSTANT_FAIL || last_token->type == TOKEN_TYPE__VAR_INT || TOKEN_TYPE__VAR_UINT) {
+		identifier[identifier_count].name = malloc(*_i * sizeof(char));
+		identifier[identifier_count].set_by_malloc = true;
+		strcpy(identifier[identifier_count].name, *code_buffer);
+		t_token->type = TOKEN_TYPE__NEW_VAR_IDENTIFIER;
+		t_token->identifier = NULL;
+		t_token->value = 0;
+		inst[*t_instruction_count] = *t_token;
+		*last_token = *t_token;
+		*_i = 0;
+		goto PARSE_LOOP;
+	}
+	else if(last_token->type == TOKEN_TYPE__COMMAND_END) {
+		t_token->type = TOKEN_TYPE__COMMAND_START;
+		t_token->identifier = NULL;
+		t_token->value = 0;
+		inst[*t_instruction_count] = *t_token;
+		*last_token = *t_token;
+		goto NO_LAST_TOKEN;
+	}
+	else {
+		t_token->type = TOKEN_TYPE__COMMAND_START;
+		t_token->identifier = NULL;
+		t_token->value = 0;
+		inst[*t_instruction_count] = *t_token;
+		*last_token = *t_token;
+		goto NO_LAST_TOKEN;
+	}
+}
+
 int compile(File* finput, uint32_t input_File_count) {
 	uint32_t t_instruction_count;
 	uint8_t cb_pos = 0;
 	char* code_buffer = malloc(256 * sizeof(char));
 	char* code_temp_buffer = malloc(256 * sizeof(char));
 	char* str_buffer = malloc(4096 * sizeof(char));
+	TOKEN t_token;
+	TOKEN last_token;
+	char* buf;
 	int _i = 0;
+	int _i2 = 0;
 	int c;
 	for(int fi = 0; fi < input_File_count; fi++) {
 		// Set temporary FILE*
 		FILE* t_fptr = finput[fi].fptr;
-		do {
-			// Read to string
-			c = fgetc(t_fptr);
-			if(c == EOF) {
-				break;
-			}
-			else if((char)c == ' ') {
-				// Compute snipet
-				for(int i = 0 + cb_pos; i < 255; i++) {
-					code_buffer[i] = ' ';
-				}
-				code_buffer[255] = '\0';
-				if(isdigit(code_buffer[0])) {
-					code_temp_buffer[0] = code_buffer[0];
-					PARSE_NUMBER:
-					_i = 1;
-					for(int ii = 1; ii < 255; ii++) {
-						if(isdigit(code_buffer[_i])) {
-							code_temp_buffer[ii] = code_buffer[ii];
-							_i = ii;
-						}
-						else {
-							printf("[ERROR] Invalid number.");
-							return 1;
-						}
-					}
-					int number = 0;
-					for(int times = 1; _i >= 0; _i--) {
-						number = number + (code_temp_buffer[_i] * times);
-						times = times * 10;
-					}
-
-					TOKEN t_token = { TOKEN_TYPE__CONST_UINT, number };
-					t_instruction_count = instruction_count;
-					inst[t_instruction_count] = t_token;
-				}
-				else {
-					char* buf = code_buffer;
-					switch((int)*buf) {
-						case (int)'\0': {
-							// End - WIP
-						} break;
-						case (int)'+': {
-							// Plus operator or positiv number (unsigned int) or append operator or bad programming
-							_i++;
-							buf++;
-							switch((int)*buf) {
-								case (int)'\0': {
-									// End - WIP
-								} break;
-								case (int)' ': {
-									// Plus operator
-								} break;
-								default: {
-									// Positiv number (unsigned int) or bad programming
-									if(isdigit(*buf)) {
-										// Positiv number (unsigned int)
-										goto PARSE_NUMBER;
-									}
-									else if(isalpha(*buf)) {
-										// Bad programming (Use the damn SPACE)
-										goto PARSE_IDENTIFIER;
-									}
-								} break;
-							}
-						} break;
-						default: {
-							PARSE_IDENTIFIER:
-							printf("[ERROR] \"%s\" is not a keyword or identifier.", code_buffer);
-							return -1;
-						} break;
-					}
-				}
-			}
-			else {
-				code_buffer[cb_pos] = (char)c;
-			}
-		} while(c != EOF);
+			// Parse Code
+			compile__PARSE_LOOP(&t_instruction_count, &code_buffer, &t_token, &last_token, &_i, &c, &t_fptr);
 	}
 
 	// Free memory
