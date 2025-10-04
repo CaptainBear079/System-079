@@ -26,6 +26,7 @@ enum TOKEN_TYPES {
 
 typedef struct _File_ {
     FILE* fptr;
+	char* path;
 } File;
 
 typedef struct _Def_ {
@@ -41,6 +42,7 @@ typedef struct _IDENTIFIER_ {
 typedef struct _TOKEN_ {
 	uint32_t type;
 	uint32_t value;
+	void* ptr_value;
 	IDENTIFIER* identifier;
 } TOKEN;
 
@@ -114,6 +116,8 @@ uint32_t max_defines_count;
 uint32_t max_inst_count;
 uint32_t max_input_files;
 
+Def* Defines;
+uint32_t defines_count;
 TOKEN* inst;
 uint32_t instruction_count;
 IDENTIFIER* identifier;
@@ -125,7 +129,7 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo);
 int compile(File* finput, uint32_t fcount);
 int translate();
 int assemble();
-int set_format(Def* Defines, uint32_t* defines_count, uint8_t* Format, char* argv);
+int Argument_processing__set_format(uint8_t* Format, char* argv);
 
 int main(int argc, char* argv[]) {
     if(argc < 3) {
@@ -135,9 +139,7 @@ int main(int argc, char* argv[]) {
     // Variables
     bool input_given          = true;
     uint32_t input_file_count = 0;
-    uint32_t defines_count    = 0;
     File foutput;
-    Def* Defines;
     File* finput;
     uint8_t Format            = 7;
 	uint8_t EFormat           = 0;
@@ -168,17 +170,18 @@ int main(int argc, char* argv[]) {
         finput[i].fptr = NULL;
     }
     
-    /*Defines = malloc(max_defines_count * sizeof(Def));
-    for(int i = max_defines_count - 1; i > 0; i--) {
+    defines_count = 0;
+	Defines = malloc(max_defines_count * sizeof(Def));
+    for(int i = 0; i < max_defines_count; i--) {
         Defines[i].str = malloc(256 * sizeof(char));
-    }*/
+    }
     for(int i = 1; i < argc; i++) {
         char* str_p = argv[i];
         char c = str_p[0];
         if(c == '-') {
             c = str_p[1];
             switch((int)c) {
-                /*case ARG__SET_OUTPUT: {
+                case ARG__SET_OUTPUT: {
                     // Set output file
 					i++;
                     fclose(foutput.fptr);
@@ -187,11 +190,11 @@ int main(int argc, char* argv[]) {
                         printf("[ERROR] Output file \"%s\" could not be found or created.\n", argv[i]);
                         return -1; // Chaos.ErrorMessages.ArgumentError
                     }
-                } break;*/
-                /*case ARG__DEFINE: {
+                } break;
+                case ARG__DEFINE: {
                     // Add Define to pre-processing
 					i++;
-                    if(defines_count >= 6000) {
+                    if(defines_count >= max_defines_count) {
                         printf("[ERROR] To many defines.\n");
                         return 1;
                     }
@@ -202,17 +205,17 @@ int main(int argc, char* argv[]) {
                         p++;
                     }
                     defines_count++;
-                } break;*/
-                /*case ARG__SET_FORMAT: {
+                } break;
+                case ARG__SET_FORMAT: {
                     // Add Defines to pre-processing and set format
 					i++;
                     int ret = 0;
-                    ret = set_format(Defines, &defines_count, &Format, argv[i]);
+                    ret = Argument_processing__set_format(&Format, argv[i]);
                     if(ret != 0) {
                         return ret;
                     }
-                }*/
-				/*case ARG__EXECUTION_FORMAT: {
+                }
+				case ARG__EXECUTION_FORMAT: {
 					// Set execution format
 					i++;
 					char* def1 = NULL;
@@ -245,8 +248,8 @@ int main(int argc, char* argv[]) {
 						p++;
 					}
 					Defines[defines_count] = Define;
-				} break;*/
-				/*case ARG__WITH_DEBUG_INFO: {
+				} break;
+				case ARG__WITH_DEBUG_INFO: {
 					// Add debug info
 					i++;
 					if(argv[i] == ARG_DEBUG__Z7) {
@@ -266,7 +269,7 @@ int main(int argc, char* argv[]) {
 						printf("[ERROR] \"%s\" is an invalid or unsupported format for debug info.\n", argv[i]);
 						return -1; // Chaos.ErrorMessages.ArgumentError
 					}
-				} break;*/
+				} break;
                 default: {
                     // Invalid argument
                     printf("[ERROR] Argument \"%s\" is invalid.\n", argv[i]);
@@ -276,10 +279,12 @@ int main(int argc, char* argv[]) {
         }
         else {
             // Add input file
-            if(input_file_count >= 3000) {
+            if(input_file_count >= max_input_files) {
                 printf("[ERROR] To many input files.");
                 return 1;
             }
+			finput[input_file_count].path = malloc(strlen(argv[i]) * sizeof(char));
+			strcpy(finput[input_file_count].path, argv[i]);
             finput[input_file_count].fptr = fopen(argv[i], "r");
             if(finput[input_file_count].fptr == NULL) {
                 printf("[ERROR] Input file \"%s\" doesn't exist.", argv[i]);
@@ -525,7 +530,7 @@ int compile__PARSE_LOOP(
 	// Read
 	*c = fgetc(*t_fptr);
 	PARSE_LOOP_WITHOUT_FETCH:
-	if(c == EOF) {
+	if(*c == EOF) {
 		if(*_i == 0) {
 			return 0;
 		}
@@ -548,7 +553,7 @@ int compile__PARSE_LOOP(
 
 	NO_LAST_TOKEN:
 	// Check for EOF
-	if (c == EOF) {
+	if (*c == EOF) {
 		return 0;
 	}
 	// Parse keyword - WIP
@@ -556,7 +561,7 @@ int compile__PARSE_LOOP(
 		if(strcmp(*code_buffer, "int") == 0) {
 			t_token->type = TOKEN_TYPE__VAR_INT;
 			t_token->identifier = &identifier[identifier_count];
-			t_token->value = &inst[*t_instruction_count + 1];
+			t_token->ptr_value = &inst[*t_instruction_count + 1];
 			inst[*t_instruction_count] = *t_token;
 			*last_token = *t_token;
 			*_i = 0;
@@ -674,41 +679,7 @@ int compile__PARSE_LOOP(
 		else if(isdigit(*code_buffer[0])) {
 			int number = 0;
 			for(int times = 10; *_i > -1; *_i++) {
-				switch((int)*code_buffer[*_i]) {
-					case (int)'0': {
-						number = number + (0 * times);
-					} break;
-					case (int)'1': {
-						number = number + (1 * times);
-					} break;
-					case (int)'2': {
-						number = number + (2 * times);
-					} break;
-					case (int)'3': {
-						number = number + (3 * times);
-					} break;
-					case (int)'4': {
-						number = number + (4 * times);
-					} break;
-					case (int)'5': {
-						number = number + (5 * times);
-					} break;
-					case (int)'6': {
-						number = number + (6 * times);
-					} break;
-					case (int)'7': {
-						number = number + (7 * times);
-					} break;
-					case (int)'8': {
-						number = number + (8 * times);
-					} break;
-					case (int)'9': {
-						number = number + (9 * times);
-					} break;
-					default: {
-						return -2;
-					}
-				}
+				number = number + (atoi(*code_buffer[*_i]) * times);
 			}
 		}
 	}
@@ -773,77 +744,34 @@ int translate() {}
 
 int assemble() {}
 
-int set_format(Def* Defines, uint32_t* defines_count, uint8_t* Format, char* argv) {
-	if(*defines_count >= 6000) {
+int Argument_processing__set_format(uint8_t* Format, char* argv) {
+	if(defines_count >= 6000) {
 		printf("[ERROR] To many defines.\n");
 		return 1;
 	}
 	char* def1 = NULL;
-	if(strcmp(argv, ARG_FORMAT__RAW16) == 0) {
-		*Format = 0;
-		def1 = FORMAT_DEF_01;
-	}
-	else if(strcmp(argv, ARG_FORMAT__RAW32) == 0) {
-		*Format = 1;
-		def1 = FORMAT_DEF_02;
-	}
-	else if(strcmp(argv, ARG_FORMAT__RAW64) == 0) {
-		*Format = 2;
-		def1 = FORMAT_DEF_03;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF32_RAW) == 0) {
-		*Format = 3;
-		def1 = FORMAT_DEF_04;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF32_LINUX) == 0) {
-		*Format = 4;
-		def1 = FORMAT_DEF_05;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF32_SYS079) == 0) {
-		*Format = 5;
-		def1 = FORMAT_DEF_06;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF64_RAW) == 0) {
-		*Format = 6;
-		def1 = FORMAT_DEF_07;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF64_LINUX) == 0) {
-		*Format = 7;
-		def1 = FORMAT_DEF_08;
-	}
-	else if(strcmp(argv, ARG_FORMAT__ELF64_SYS079) == 0) {
-		*Format = 8;
-		def1 = FORMAT_DEF_09;
-	}
-	else if(strcmp(argv, ARG_FORMAT__APK32) == 0) {
-		*Format = 9;
-		def1 = FORMAT_DEF_10;
-	}
-	else if(strcmp(argv, ARG_FORMAT__APK64) == 0) {
-		*Format = 10;
-		def1 = FORMAT_DEF_11;
-	}
-	else if(strcmp(argv, ARG_FORMAT__WIN32) == 0) {
-		*Format = 11;
-		def1 = FORMAT_DEF_12;
-	}
-	else if(strcmp(argv, ARG_FORMAT__WIN64) == 0) {
-		*Format = 12;
-		def1 = FORMAT_DEF_13;
-	}
+	if(strcmp(argv, ARG_FORMAT__RAW16) == 0)             { *Format =  0; def1 = FORMAT_DEF_01; }
+	else if(strcmp(argv, ARG_FORMAT__RAW32) == 0)        { *Format =  1; def1 = FORMAT_DEF_02; }
+	else if(strcmp(argv, ARG_FORMAT__RAW64) == 0)        { *Format =  2; def1 = FORMAT_DEF_03; }
+	else if(strcmp(argv, ARG_FORMAT__ELF32_RAW) == 0)    { *Format =  3; def1 = FORMAT_DEF_04; }
+	else if(strcmp(argv, ARG_FORMAT__ELF32_LINUX) == 0)  { *Format =  4; def1 = FORMAT_DEF_05; }
+	else if(strcmp(argv, ARG_FORMAT__ELF32_SYS079) == 0) { *Format =  5; def1 = FORMAT_DEF_06; }
+	else if(strcmp(argv, ARG_FORMAT__ELF64_RAW) == 0)    { *Format =  6; def1 = FORMAT_DEF_07; }
+	else if(strcmp(argv, ARG_FORMAT__ELF64_LINUX) == 0)  { *Format =  7; def1 = FORMAT_DEF_08; }
+	else if(strcmp(argv, ARG_FORMAT__ELF64_SYS079) == 0) { *Format =  8; def1 = FORMAT_DEF_09; }
+	else if(strcmp(argv, ARG_FORMAT__APK32) == 0)        { *Format =  9; def1 = FORMAT_DEF_10; }
+	else if(strcmp(argv, ARG_FORMAT__APK64) == 0)        { *Format = 10; def1 = FORMAT_DEF_11; }
+	else if(strcmp(argv, ARG_FORMAT__WIN32) == 0)        { *Format = 11; def1 = FORMAT_DEF_12; }
+	else if(strcmp(argv, ARG_FORMAT__WIN64) == 0)        { *Format = 12; def1 = FORMAT_DEF_13; }
 	else {
 		printf("[ERROR] \"%s\" is an invalid Format.", argv);
 		return -1; // Chaos.ErrorMessages.ArgumentError
 	}
 
-	Def Define;
-	Define.str = malloc(255 * sizeof(char));
-	for(int i = 255; i > -1; i--) {
-	    Define.str[i] = def1[i];
-	}
-	for(int i = 255; i > -1; i--) {
-		Defines[*defines_count].str[i] = Define.str[i];
-	}
+	// Add the format #define
+	strncpy(Defines[defines_count].str, def1, 255);
+	Defines[defines_count].str[255] = '\0';
+	defines_count++;
 
 	return 0; // Success
 }

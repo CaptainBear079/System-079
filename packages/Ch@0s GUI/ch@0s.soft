@@ -2,10 +2,46 @@
 
 TEMP_USER $(T_USER);
 
-int the_cha0s_begins() {
+system int the_cha0s_begins() {
     // Initalise the cha0s
+    // Layer 1 - You should be fine.
+    char* arg = NULL;
+    for(int i = 0; i < argc; i++) {
+        arg = argv[i];
+        if(*arg == '-') {
+            arg++;
+            switch((int)*arg) {
+                case (int)'c': {
+                    arg++;
+                    if(*arg == 'l') {
+                        // Set control level
+                        i++;
+                        arg = argv[i];
+                        control_level = TxtToNum(arg);
+                        CheckMinAndMax(control_level, 0, 4);
+                    }
+                    else {
+                        arg--;
+                        arg--;
+                        i++;
+                        printf("[ERROR] \"%s %s\" is not a valid argument.", arg, argv[i]);
+                        return -1; // Argument Error
+                    }
+                } break;
+                default: {
+                    arg--;
+                    printf("[ERROR] \"%s\" is not a valid argument.", arg);
+                    return -1; // Argument Error
+                } break;
+            }
+        }
+    }
+    // Layer 2 - YAAI!
+    _SYS__ADMIN __CHAOS_GUI__ADMIN = __get_admin($INFO(USER));
+    entity.getAdmin(__CHAOS_GUI__ADMIN, control_level);
+    // Layer 3 - RuN B!T€H!
 }
 
 int CHA0s() {
-    // CH@0S NOW RUN!
+    // Chase - €h@0$ n0W ruN!
 }

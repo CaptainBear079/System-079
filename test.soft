@@ -1,1 +1,5 @@
-int i = 1 + 1;
+int main() {
+    return 0;
+}
+
+// Supports int, char, void
