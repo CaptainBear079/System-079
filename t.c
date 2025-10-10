@@ -17,36 +17,36 @@
 	#define U_BIT_RANGE uint64_t
 #endif
 
-#define ERROR_IN_CURRENT if(info.error_in_current) {} \
+#define ERROR_IN_CURRENT if(info->error_in_current) {} \
 	else {\
-		printf("[ERROR] in file %s:\n", info.current_file->path);\
+		printf("[ERROR] in file %s:\n", info->current_file->path);\
 	}
 
-#define FGETC_CHECK_EOF_WHILE(a) while(a) { \
-		c = fgetc(info.current_file->fptr); \
+#define FGETC_CHECK_EOF_WHILE(a, b) while(a) { \
+		c = fgetc(b->current_file->fptr); \
 		if(c == EOF) { \
-			info.current_file->EOF_reached = true; \
+			b->current_file->EOF_reached = true; \
 			goto EOF_REACHED; \
 		} \
-		info.column++; \
+		b->column++; \
 	}
 
 #define CHECK_IF_POINTER(a, b) { \
 		int c = (int)' '; \
 		while((char)c != '*') { \
-			c = fgetc(info.current_file->fptr); \
+			c = fgetc(info->current_file->fptr); \
 			if(c == EOF) { \
-				info.current_file->EOF_reached = true; \
+				info->current_file->EOF_reached = true; \
 				goto EOF_REACHED; \
 			} \
-			info.column++; \
+			info->column++; \
 			if((char)c == '*') { \
 				t_operation.type = LOCAL_POINTER; \
 			} \
 			else { \
 			if(!(char)c == ' ') { \
 				c = (int)' '; \
-				FGETC_CHECK_EOF_WHILE((char)c == ' ') \
+				FGETC_CHECK_EOF_WHILE((char)c == ' ', info) \
 				if((char)c == '*') { \
 					t_operation.type = b; \
 				} \
@@ -94,7 +94,7 @@ typedef struct _OPERATION_ {
 typedef struct _compiler_runtime_info_ {
 	File* current_file;
 	bool is_in_function;
-	char current_function[256];
+	char* current_function;
 	uint32_t line;
 	uint32_t last_line;
 	uint32_t column;
@@ -108,28 +108,31 @@ int read_calculation(compiler_runtime_info* info, int* c, OPERATION* t_operation
 
 int TAB_WIDTH;
 
-int compile_file() {
+int compile_file(compiler_runtime_info* info, File* file) {
 	TAB_WIDTH = 4;
-	compiler_runtime_info info = { false, "" };
+	info->current_file = file;
+	info->is_in_function = false;
+	info->current_function = malloc(256 * sizeof(char));
+	strncpy(info->current_function, " ", 255);
 	char* code_buffer = malloc(CODE_BUFFER_MAX_LENGTH * sizeof(char));
 	char* buffer = malloc(CODE_BUFFER_MAX_LENGTH * sizeof(char));
 	// Stop on EOF
-	while(!info.current_file->EOF_reached) {
+	while(!info->current_file->EOF_reached) {
 		// Get token
 		{
 			int c = (int)' ';
 			get_token(&info, code_buffer, &c, CODE_BUFFER_MAX_LENGTH);
 		}
 		// Check if is in function
-		if(!info.is_in_function) {
+		if(!info->is_in_function) {
 			// Outside a function
 			if(strncmp(code_buffer, "//", 2) == 0) {
 				// Full-Line Comment
 				{
 					int c = (int)' ';
-					FGETC_CHECK_EOF_WHILE((char)c != '\n')
-					info.line++;
-					info.column = 1;
+					FGETC_CHECK_EOF_WHILE((char)c != '\n', info)
+					info->line++;
+					info->column = 1;
 				}
 			}
 			else if(strncmp(code_buffer, "/*", 2) == 0) {
@@ -138,23 +141,23 @@ int compile_file() {
 					bool done = false;
 					int c = (int)' ';
 					while(!done) {
-						c = fgetc(info.current_file->fptr);
+						c = fgetc(info->current_file->fptr);
 						if(c == EOF) {
-							info.current_file->EOF_reached = true;
+							info->current_file->EOF_reached = true;
 							goto EOF_REACHED;
 						}
-						info.column++;
+						info->column++;
 						if((char)c == '\n') {
-							info.line++;
-							info.column = 1;
+							info->line++;
+							info->column = 1;
 						}
 						if((char)c == '*') {
-							c = fgetc(info.current_file->fptr);
+							c = fgetc(info->current_file->fptr);
 							if(c == EOF) {
-								info.current_file->EOF_reached = true;
+								info->current_file->EOF_reached = true;
 								goto EOF_REACHED;
 							}
-							info.column++;
+							info->column++;
 							if((char)c == '/') {
 								done = true;
 							}
@@ -178,7 +181,7 @@ int compile_file() {
 				}
 				else {
 					ERROR_IN_CURRENT
-					printf("at line %d, column %d: \"%s\" is not a valid type, function return type or comment. -[SyntaxError_TYPO?]", info.line, info.column, code_buffer);
+					printf("at line %d, column %d: \"%s\" is not a valid type, function return type or comment. -[SyntaxError_TYPO?]", info->line, info->column, code_buffer);
 				}
 			}
 			else if(strcmp(code_buffer, "int") == 0) {
@@ -192,7 +195,7 @@ int compile_file() {
 			}
 			else {
 				ERROR_IN_CURRENT
-				printf("at line %d, column %d: \"%s\" is not a valid type, function return type or comment. -[SyntaxError_TYPO?]", info.line, info.column, code_buffer);
+				printf("at line %d, column %d: \"%s\" is not a valid type, function return type or comment. -[SyntaxError_TYPO?]", info->line, info->column, code_buffer);
 			}
 		}
 		else {
@@ -201,9 +204,9 @@ int compile_file() {
 				// Full-Line Comment
 				{
 					int c = (int)' ';
-					FGETC_CHECK_EOF_WHILE((char)c != '\n')
-					info.line++;
-					info.column = 1;
+					FGETC_CHECK_EOF_WHILE((char)c != '\n', info)
+					info->line++;
+					info->column = 1;
 				}
 			}
 			else if(strncmp(code_buffer, "/*", 2) == 0) {
@@ -212,23 +215,23 @@ int compile_file() {
 					bool done = false;
 					int c = (int)' ';
 					while(!done) {
-						c = fgetc(info.current_file->fptr);
+						c = fgetc(info->current_file->fptr);
 						if(c == EOF) {
-							info.current_file->EOF_reached = true;
+							info->current_file->EOF_reached = true;
 							goto EOF_REACHED;
 						}
-						info.column++;
+						info->column++;
 						if((char)c == '\n') {
-							info.line++;
-							info.column = 1;
+							info->line++;
+							info->column = 1;
 						}
 						if((char)c == '*') {
-							c = fgetc(info.current_file->fptr);
+							c = fgetc(info->current_file->fptr);
 							if(c == EOF) {
-								info.current_file->EOF_reached = true;
+								info->current_file->EOF_reached = true;
 								goto EOF_REACHED;
 							}
-							info.column++;
+							info->column++;
 							if((char)c == '/') {
 								done = true;
 							}
@@ -259,7 +262,7 @@ int compile_file() {
 				// Set value
 				{
 					int c = (int)' ';
-					FGETC_CHECK_EOF_WHILE((char)c != ';' || (char)c != '=')
+					FGETC_CHECK_EOF_WHILE((char)c != ';' || (char)c != '=', info)
 					if((char)c == ';') {
 						// Variable standard value
 						t_operation.identifier->value_state = IDENTIFIER_VALUE_UNDEFINED_OR_INVALID_SET;
@@ -268,37 +271,47 @@ int compile_file() {
 						// Variable set address
 						c = (int)' ';
 						while((char)c == ' ') {
-							c = fgetc(info.current_file->fptr);
+							c = fgetc(info->current_file->fptr);
 							if(c == EOF) {
-								info.current_file->EOF_reached = true;
+								info->current_file->EOF_reached = true;
 								goto EOF_REACHED;
 							}
-							info.column++;
+							info->column++;
 						}
 						// Get address
 						if((char)c == '&') {
 							check_identifier(&info, &c);
-							// Check if a arithmetic calculation is being done, to change the address as example for offsets (addition, subtraction, multiplication, division, modulus)
-							if((char)c == ' ') {
-								c = (int)' ';
-								while((char)c == ' ') {
-									c = fgetc(info.current_file->fptr);
-									if(c == EOF) {
-										info.current_file->EOF_reached = true;
-										goto EOF_REACHED;
-									}
-									info.column++;
+						}
+						else if((char)c == '0') {
+							// Hexadecimal or Binary address
+							c = fgetc(info->current_file->fptr);
+							if(c == EOF) {
+								info->current_file->EOF_reached = true;
+								printf("at line %d, column %d: Unfinished pointer change without termination by \';\' inside a function. -[Warning_UnfinishedCode]", info->line, info->column);
+								goto EOF_REACHED;
+							}
+							info->column++;
+						}
+						// Check if a arithmetic calculation is being done, to change the address as example for offsets (addition, subtraction, multiplication, division, modulus)
+						if((char)c == ' ') {
+							c = (int)' ';
+							while((char)c == ' ') {
+								c = fgetc(info->current_file->fptr);
+								if(c == EOF) {
+									info->current_file->EOF_reached = true;
+									goto EOF_REACHED;
 								}
-								if((char)c == '+') {
-									// Addition
-									read_calculation(&info, &c, &t_operation, ';');
-								}
-								else {
-									// Invalid: No address given
-									ERROR_IN_CURRENT
-									printf("at line %d, column %d: No identifier name given after '&'. -[SyntaxError_ADDRESS_OPERATOR]", info.line, info.column);
-									t_operation.identifier->value_state = IDENTIFIER_VALUE_UNDEFINED_OR_INVALID_SET;
-								}
+								info->column++;
+							}
+							if((char)c == '+') {
+								// Addition
+								read_calculation(&info, &c, &t_operation, ';');
+							}
+							else {
+								// Invalid: No address given
+								ERROR_IN_CURRENT
+								printf("at line %d, column %d: No identifier name given after '&'. -[SyntaxError_ADDRESS_OPERATOR]", info->line, info->column);
+								t_operation.identifier->value_state = IDENTIFIER_VALUE_UNDEFINED_OR_INVALID_SET;
 							}
 						}
 					}
@@ -306,7 +319,7 @@ int compile_file() {
 			}
 			else {
 				ERROR_IN_CURRENT
-				printf("at line %d, column %d: \"%s\" is not a valid type or comment. -[SyntaxError_TYPO?]", info.line, info.column, code_buffer);
+				printf("at line %d, column %d: \"%s\" is not a valid type or comment. -[SyntaxError_TYPO?]", info->line, info->column, code_buffer);
 			}
 		}
 		EOF_REACHED:

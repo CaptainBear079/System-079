@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include "t.c"
+
 enum TOKEN_TYPES {
 	TOKEN_TYPE__COMMAND_START,
 	TOKEN_TYPE__COMMAND_START_KEYWORD_FAIL,
@@ -517,203 +519,6 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 	}
 }
 
-int compile__PARSE_LOOP(
-				uint32_t* t_instruction_count,
-				char** code_buffer,
-				TOKEN* t_token,
-				TOKEN* last_token,
-				int* _i,
-				int* c,
-				FILE** t_fptr
-			) {
-	PARSE_LOOP:
-	// Read
-	*c = fgetc(*t_fptr);
-	PARSE_LOOP_WITHOUT_FETCH:
-	if(*c == EOF) {
-		if(*_i == 0) {
-			return 0;
-		}
-	}
-	else if((char)*c == '=') {
-		// Set or equals
-		*code_buffer[*_i] = (char)*c;
-		*_i++;
-		*c = fgetc(*t_fptr);
-		if((char)*c == '=') {
-			*code_buffer[*_i] = (char)*c;
-			*_i++;
-		}
-		else {
-			// Set
-		}
-	}
-	*code_buffer[*_i] = '\0';
-	*_i++;
-
-	NO_LAST_TOKEN:
-	// Check for EOF
-	if (*c == EOF) {
-		return 0;
-	}
-	// Parse keyword - WIP
-	else if(last_token->type == TOKEN_TYPE__COMMAND_START) {
-		if(strcmp(*code_buffer, "int") == 0) {
-			t_token->type = TOKEN_TYPE__VAR_INT;
-			t_token->identifier = &identifier[identifier_count];
-			t_token->ptr_value = &inst[*t_instruction_count + 1];
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-			*_i = 0;
-			goto PARSE_LOOP;
-		}
-	}
-	// Parse Operators
-	else if(last_token->type == TOKEN_TYPE__COMMAND_START_KEYWORD_FAIL || last_token->type == TOKEN_TYPE__NEW_VAR_IDENTIFIER) {
-		if(strcmp(*code_buffer, ";") == 0) {
-			t_token->type = TOKEN_TYPE__COMMAND_END;
-			t_token->identifier = NULL;
-			t_token->value = 0;
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-		}
-		else if(strcmp(*code_buffer, "=") == 0) {
-			t_token->type = TOKEN_TYPE__OPERATOR_SET;
-			t_token->identifier = NULL;
-			t_token->value = 0;
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-		}
-		else if(strcmp(*code_buffer, "==") == 0) {
-			t_token->type = TOKEN_TYPE__OPERATOR_EQUALS;
-			t_token->identifier = NULL;
-			t_token->value = 0;
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-		}
-		else if(strcmp(*code_buffer, "+") == 0) {
-			t_token->type = TOKEN_TYPE__ADD;
-			t_token->identifier = NULL;
-			t_token->value = 0;
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-		}
-		else {
-			t_token->type = TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL;
-			t_token->identifier = NULL;
-			t_token->value = 0;
-			inst[*t_instruction_count] = *t_token;
-			*last_token = *t_token;
-		}
-	}
-	// Parse constants - WIP
-	else if(last_token->type == TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL || last_token->type == TOKEN_TYPE__SET) {
-		if(*code_buffer[0] == '0') {
-			if(*code_buffer[1] == 'x') {
-				int number = 0;
-				for(int times = 16; *_i > 1; *_i--) {
-					switch((int)*code_buffer[*_i]) {
-						case (int)'0': {
-							number = number + (0 * times);
-						} break;
-						case (int)'1': {
-							number = number + (1 * times);
-						} break;
-						case (int)'2': {
-							number = number + (2 * times);
-						} break;
-						case (int)'3': {
-							number = number + (3 * times);
-						} break;
-						case (int)'4': {
-							number = number + (4 * times);
-						} break;
-						case (int)'5': {
-							number = number + (5 * times);
-						} break;
-						case (int)'6': {
-							number = number + (6 * times);
-						} break;
-						case (int)'7': {
-							number = number + (7 * times);
-						} break;
-						case (int)'8': {
-							number = number + (8 * times);
-						} break;
-						case (int)'9': {
-							number = number + (9 * times);
-						} break;
-						case (int)'A':
-						case (int)'a': {
-							number = number + (10 * times);
-						} break;
-						case (int)'B':
-						case (int)'b': {
-							number = number + (11 * times);
-						} break;
-						case (int)'C':
-						case (int)'c': {
-							number = number + (12 * times);
-						} break;
-						case (int)'D':
-						case (int)'d': {
-							number = number + (13 * times);
-						} break;
-						case (int)'E':
-						case (int)'e': {
-							number = number + (14 * times);
-						} break;
-						case (int)'F':
-						case (int)'f': {
-							number = number + (15 * times);
-						} break;
-
-						default: {
-							return -2;
-						} break;
-					}
-					times = times * 16;
-				}
-			}
-		}
-		else if(isdigit(*code_buffer[0])) {
-			int number = 0;
-			for(int times = 10; *_i > -1; *_i++) {
-				number = number + (atoi(*code_buffer[*_i]) * times);
-			}
-		}
-	}
-	// Parse identifier - WIP
-	else if(last_token->type == TOKEN_TYPE__COMMAND_START_CONSTANT_FAIL || last_token->type == TOKEN_TYPE__VAR_INT || TOKEN_TYPE__VAR_UINT) {
-		identifier[identifier_count].name = malloc(*_i * sizeof(char));
-		identifier[identifier_count].set_by_malloc = true;
-		strcpy(identifier[identifier_count].name, *code_buffer);
-		t_token->type = TOKEN_TYPE__NEW_VAR_IDENTIFIER;
-		t_token->identifier = NULL;
-		t_token->value = 0;
-		inst[*t_instruction_count] = *t_token;
-		*last_token = *t_token;
-		*_i = 0;
-		goto PARSE_LOOP;
-	}
-	else if(last_token->type == TOKEN_TYPE__COMMAND_END) {
-		t_token->type = TOKEN_TYPE__COMMAND_START;
-		t_token->identifier = NULL;
-		t_token->value = 0;
-		inst[*t_instruction_count] = *t_token;
-		*last_token = *t_token;
-		goto NO_LAST_TOKEN;
-	}
-	else {
-		t_token->type = TOKEN_TYPE__COMMAND_START;
-		t_token->identifier = NULL;
-		t_token->value = 0;
-		inst[*t_instruction_count] = *t_token;
-		*last_token = *t_token;
-		goto NO_LAST_TOKEN;
-	}
-}
-
 int compile(File* finput, uint32_t input_File_count) {
 	uint32_t t_instruction_count;
 	uint8_t cb_pos = 0;
@@ -730,7 +535,7 @@ int compile(File* finput, uint32_t input_File_count) {
 		// Set temporary FILE*
 		FILE* t_fptr = finput[fi].fptr;
 			// Parse Code
-			compile__PARSE_LOOP(&t_instruction_count, &code_buffer, &t_token, &last_token, &_i, &c, &t_fptr);
+			compile_file();
 	}
 
 	// Free memory
