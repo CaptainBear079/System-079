@@ -5,48 +5,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "t.c"
-
-enum TOKEN_TYPES {
-	TOKEN_TYPE__COMMAND_START,
-	TOKEN_TYPE__COMMAND_START_KEYWORD_FAIL,
-	TOKEN_TYPE__COMMAND_START_OPERATOR_FAIL,
-	TOKEN_TYPE__COMMAND_START_CONSTANT_FAIL,
-	TOKEN_TYPE__COMMAND_END,
-	TOKEN_TYPE__CONST_UINT,
-	TOKEN_TYPE__CONST_INT,
-	TOKEN_TYPE__VAR_UINT,
-	TOKEN_TYPE__VAR_INT,
-	TOKEN_TYPE__ADD,
-	TOKEN_TYPE__SET,
-	TOKEN_TYPE__NEW_VAR_IDENTIFIER,
-	TOKEN_TYPE__IDENTIFIER,
-	TOKEN_TYPE__OPERATOR_SET,
-	TOKEN_TYPE__OPERATOR_EQUALS,
-	TOKEN_TYPE__FUNCTION
-};
-
-typedef struct _File_ {
-    FILE* fptr;
-	char* path;
-} File;
+#include "t.h"
 
 typedef struct _Def_ {
     char* str;
 } Def;
-
-typedef struct _IDENTIFIER_ {
-	char* name;
-	bool set_by_malloc;
-	char* type;
-} IDENTIFIER;
-
-typedef struct _TOKEN_ {
-	uint32_t type;
-	uint32_t value;
-	void* ptr_value;
-	IDENTIFIER* identifier;
-} TOKEN;
 
 typedef struct _PRE_INFO_ {
 	char* title;
@@ -120,7 +83,7 @@ uint32_t max_input_files;
 
 Def* Defines;
 uint32_t defines_count;
-TOKEN* inst;
+OPERATION* inst;
 uint32_t instruction_count;
 IDENTIFIER* identifier;
 uint32_t identifier_count;
@@ -158,7 +121,7 @@ int main(int argc, char* argv[]) {
 		max_input_files   = 100;
 	}
 	
-	inst = malloc(max_inst_count * sizeof(TOKEN));
+	inst = malloc(max_inst_count * sizeof(OPERATION));
 
 	identifier = malloc(1024 * sizeof(IDENTIFIER));
 
@@ -216,7 +179,7 @@ int main(int argc, char* argv[]) {
                     if(ret != 0) {
                         return ret;
                     }
-                }
+                } break;
 				case ARG__EXECUTION_FORMAT: {
 					// Set execution format
 					i++;
@@ -520,28 +483,12 @@ int preprocessor(File* finput, uint32_t input_File_count, PRE_INFO* PreInfo) {
 }
 
 int compile(File* finput, uint32_t input_File_count) {
-	uint32_t t_instruction_count;
-	uint8_t cb_pos = 0;
-	char* code_buffer = malloc(256 * sizeof(char));
-	char* code_temp_buffer = malloc(256 * sizeof(char));
-	char* str_buffer = malloc(4096 * sizeof(char));
-	TOKEN t_token;
-	TOKEN last_token;
-	char* buf;
-	int _i = 0;
-	int _i2 = 0;
-	int c;
+	compiler_runtime_info info;
 	for(int fi = 0; fi < input_File_count; fi++) {
 		// Set temporary FILE*
-		FILE* t_fptr = finput[fi].fptr;
 			// Parse Code
-			compile_file();
+			compile_file(&info, &finput[fi]);
 	}
-
-	// Free memory
-	free(code_buffer);
-	free(code_temp_buffer);
-	free(str_buffer);
 	return 0;
 }
 

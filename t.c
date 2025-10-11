@@ -5,104 +5,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#define CODE_BUFFER_MAX_LENGTH 256
+#include "t.h"
 
-#if __32BIT__
-	// 32-bit
-	#define _BIT_RANGE int32_t
-	#define U_BIT_RANGE uint32_t
-#else
-	// 64-bit
-	#define _BIT_RANGE int64_t
-	#define U_BIT_RANGE uint64_t
-#endif
-
-#define ERROR_IN_CURRENT if(info->error_in_current) {} \
-	else {\
-		printf("[ERROR] in file %s:\n", info->current_file->path);\
-	}
-
-#define FGETC_CHECK_EOF_WHILE(a, b) while(a) { \
-		c = fgetc(b->current_file->fptr); \
-		if(c == EOF) { \
-			b->current_file->EOF_reached = true; \
-			goto EOF_REACHED; \
-		} \
-		b->column++; \
-	}
-
-#define CHECK_IF_POINTER(a, b) { \
-		int c = (int)' '; \
-		while((char)c != '*') { \
-			c = fgetc(info->current_file->fptr); \
-			if(c == EOF) { \
-				info->current_file->EOF_reached = true; \
-				goto EOF_REACHED; \
-			} \
-			info->column++; \
-			if((char)c == '*') { \
-				t_operation.type = LOCAL_POINTER; \
-			} \
-			else { \
-			if(!(char)c == ' ') { \
-				c = (int)' '; \
-				FGETC_CHECK_EOF_WHILE((char)c == ' ', info) \
-				if((char)c == '*') { \
-					t_operation.type = b; \
-				} \
-				else { \
-					t_operation.type = a; \
-				} \
-			} \
-		} \
-	} \
-}
-
-enum OPERATION_TYPES {
-	GLOBAL_INTEGER,
-	GLOBAL_CHARACTER,
-	GLOBAL_POINTER,
-	GLOBAL_VOID,
-	LOCAL_INTEGER,
-	LOCAL_CHARACTER,
-	LOCAL_POINTER,
-	LOCAL_VOID
-};
-
-enum IDENTIFIER_VALUE_STATES {
-	IDENTIFIER_VALUE_UNDEFINED_OR_INVALID_SET,
-	IDENTIFIER_VALUE_SET
-};
-
-typedef struct _File_ {
-    FILE* fptr;
-	char* path;
-	bool EOF_reached;
-} File;
-
-typedef struct _IDENTIFIER_ {
-	char** name; // Split into tokens
-	int value_state;
-	U_BIT_RANGE value;
-} IDENTIFIER;
-
-typedef struct _OPERATION_ {
-	int type;               // Type of the operation
-	IDENTIFIER* identifier; // Only when a identifier gets created
-} OPERATION;
-
-typedef struct _compiler_runtime_info_ {
-	File* current_file;
-	bool is_in_function;
-	char* current_function;
-	uint32_t line;
-	uint32_t last_line;
-	uint32_t column;
-	uint32_t last_column;
-	bool error_in_current;
-} compiler_runtime_info;
-
-char* get_token(compiler_runtime_info* info, char* buffer, int* c, int max_length);
+int get_token(compiler_runtime_info* info, char* buffer, int* c, int max_length);
 int check_identifier(compiler_runtime_info* info, int* c);
 int read_calculation(compiler_runtime_info* info, int* c, OPERATION* t_operation, char end_char);
 
@@ -121,7 +26,7 @@ int compile_file(compiler_runtime_info* info, File* file) {
 		// Get token
 		{
 			int c = (int)' ';
-			get_token(&info, code_buffer, &c, CODE_BUFFER_MAX_LENGTH);
+			get_token(info, code_buffer, &c, CODE_BUFFER_MAX_LENGTH);
 		}
 		// Check if is in function
 		if(!info->is_in_function) {
@@ -163,25 +68,6 @@ int compile_file(compiler_runtime_info* info, File* file) {
 							}
 						}
 					}
-				}
-			}
-			else if(strcmp(code_buffer, "system") == 0) {
-				{
-					int c = (int)' ';
-					get_token(&info, buffer, &c, CODE_BUFFER_MAX_LENGTH);
-				}
-				if(strcmp(code_buffer, "int") == 0) {
-					// System type integer return
-				}
-				else if(strcmp(code_buffer, "char") == 0) {
-					// System type character return
-				}
-				else if(strcmp(code_buffer, "void") == 0) {
-					// System type pointer return
-				}
-				else {
-					ERROR_IN_CURRENT
-					printf("at line %d, column %d: \"%s\" is not a valid type, function return type or comment. -[SyntaxError_TYPO?]", info->line, info->column, code_buffer);
 				}
 			}
 			else if(strcmp(code_buffer, "int") == 0) {
@@ -241,23 +127,44 @@ int compile_file(compiler_runtime_info* info, File* file) {
 			}
 			else if(strcmp(code_buffer, "int") == 0) {
 				// Local integer
-				OPERATION t_operation = { LOCAL_INTEGER, "" };
+				IDENTIFIER t_identifier = { NULL, 0, 0 };
+				OPERATION t_operation = { CREATE__LOCAL_INTEGER, &t_identifier };
 
 				// Get name
+				t_operation.identifier->name = malloc(10 * sizeof(char*));
+				for(int i, len = 0; len < 255; i++) {
+					int c = (int)' ';
+					len = get_token(info, buffer, &c, CODE_BUFFER_MAX_LENGTH);
+					strcpy(t_operation.identifier->name[i], buffer);
+				}
 			}
 			else if(strcmp(code_buffer, "char") == 0) {
 				// Local character
-				OPERATION t_operation = { LOCAL_CHARACTER, "" };
+				IDENTIFIER t_identifier = { NULL, 0, 0 };
+				OPERATION t_operation = { CREATE__LOCAL_CHARACTER, &t_identifier };
 				
 				// Get name
+				t_operation.identifier->name = malloc(10 * sizeof(char*));
+				for(int i, len = 0; len < 255; i++) {
+					int c = (int)' ';
+					len = get_token(info, buffer, &c, CODE_BUFFER_MAX_LENGTH);
+					strcpy(t_operation.identifier->name[i], buffer);
+				}
 			}
 			else if(strcmp(code_buffer, "void") == 0) {
 				// Local pointer or void (Void is not a type)
 				// Check if pointer or void
-				OPERATION t_operation = { -1, "" };
-				CHECK_IF_POINTER(LOCAL_VOID, LOCAL_POINTER)
+				IDENTIFIER t_identifier = { NULL, 0, 0 };
+				OPERATION t_operation = { -1, &t_identifier };
+				CHECK_IF_POINTER(CREATE__LOCAL_VOID, CREATE__LOCAL_POINTER)
 
 				// Get name
+				t_operation.identifier->name = malloc(10 * sizeof(char*));
+				for(int i, len = 0; len < 255; i++) {
+					int c = (int)' ';
+					len = get_token(info, buffer, &c, CODE_BUFFER_MAX_LENGTH);
+					strcpy(t_operation.identifier->name[i], buffer);
+				}
 
 				// Set value
 				{
@@ -274,13 +181,14 @@ int compile_file(compiler_runtime_info* info, File* file) {
 							c = fgetc(info->current_file->fptr);
 							if(c == EOF) {
 								info->current_file->EOF_reached = true;
+								printf("at line %d, column %d: Unfinished pointer change without termination by \';\' inside a function. -[Warning_UnfinishedCode]", info->line, info->column);
 								goto EOF_REACHED;
 							}
 							info->column++;
 						}
 						// Get address
 						if((char)c == '&') {
-							check_identifier(&info, &c);
+							check_identifier(info, &c);
 						}
 						else if((char)c == '0') {
 							// Hexadecimal or Binary address
@@ -305,7 +213,7 @@ int compile_file(compiler_runtime_info* info, File* file) {
 							}
 							if((char)c == '+') {
 								// Addition
-								read_calculation(&info, &c, &t_operation, ';');
+								read_calculation(info, &c, &t_operation, ';');
 							}
 							else {
 								// Invalid: No address given
@@ -326,13 +234,13 @@ int compile_file(compiler_runtime_info* info, File* file) {
 	}
 }
 
-char* get_token(compiler_runtime_info* info, char* buffer, int* c, int max_length) {
+int get_token(compiler_runtime_info* info, char* buffer, int* c, int max_length) {
 	// Find first character that is not a space, tab or newline
 	while((char)*c == ' ' || (char)*c == '\t' || (char)*c == '\n') {
 		*c = fgetc(info->current_file->fptr);
 		if(*c == EOF) {
 			info->current_file->EOF_reached = true;
-			return NULL;
+			return -1;
 		}
 		if((char)*c == ' ') {
 			info->column++;
@@ -348,11 +256,11 @@ char* get_token(compiler_runtime_info* info, char* buffer, int* c, int max_lengt
 	for(int i = 0; i <= max_length; i++) {
 		if((char)*c == ' ' || (char)*c == '\t' || (char)*c == '\n') {
 			buffer[i] = '\0';
-			return buffer;
+			return strlen(buffer);
 		}
 		else if(!isalnum((char)*c)) {
 			buffer[i] = '\0';
-			return buffer;
+			return strlen(buffer);
 		}
 		buffer[i] = (char)*c;
 		i++;
@@ -360,9 +268,10 @@ char* get_token(compiler_runtime_info* info, char* buffer, int* c, int max_lengt
 		if(*c == EOF) {
 			info->current_file->EOF_reached = true;
 			buffer[i] = '\0';
-			return buffer;
+			return strlen(buffer);
 		}
 	}
+	return strlen(buffer);
 }
 
 int check_identifier(compiler_runtime_info* info, int* c) {}
