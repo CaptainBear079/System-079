@@ -181,7 +181,7 @@ pop ebp
 ret
 
 ;
-; extern void __attribute__((cdecl)) asm_m16_int0x13_Reset(uint8_t drive);
+; extern bool __attribute__((cdecl)) asm_m16_int0x13_Reset(uint8_t drive);
 ;
 global asm_m16_int0x13_Reset
 asm_m16_int0x13_Reset:
@@ -202,6 +202,8 @@ clc
 mov dl, [bp+8]
 mov ah, 0x00
 int 0x13
+xor eax, eax
+setc al
 
 ; Restore regs
 pop dx
@@ -270,7 +272,7 @@ pop ebp
 ret
 
 ;
-; extern void __attribute__((cdecl)) asm_m16_int0x13_Read(uint8_t drive, uint16_t cylinder, uint8_t head, uint8_t sector, uint8_t num_sectors, void* buffer);
+; extern void* __attribute__((cdecl)) asm_m16_int0x13_Read(uint8_t drive, uint16_t cylinder, uint8_t head, uint8_t sector, uint8_t num_sectors, void* buffer);
 ;
 global asm_m16_int0x13_Read
 asm_m16_int0x13_Read:
@@ -318,6 +320,8 @@ pop cx
 EnterProtectedMode
 [bits 32]
 
+mov eax, [bp+20]
+
 ; Delete stack frame
 mov esp, ebp
 pop ebp
@@ -325,7 +329,42 @@ pop ebp
 ret
 
 ;
-; extern void __attribute__((cdecl)) asm_m16_int0x13_EDD_Read(uint8_t drive, uint16_t upper_upper_lba, uint16_t upper_lower_lba, uint16_t lower_upper_lba, uint16_t lower_lower_lba, uint16_t num_sectors, void* buffer);
+; extern bool __attribute__((cdecl)) asm_m16_int0x13_Check_for_EDD(uint8_t drive);
+;
+global asm_m16_int0x13_Check_for_EDD
+asm_m16_int0x13_Check_for_EDD:
+[bits 32]
+; Stack frame
+push ebp
+mov ebp, esp
+push edx
+push ebx
+
+; Switch to real mode
+EnterRealMode
+[bits 16]
+
+; Int 0x13: Check for EDD
+mov ah, 0x41
+mov dl, [bp+8]
+mov bx 0x55AA
+int 0x13
+xor eax, eax
+setc al
+
+; Switch to protected mode
+EnterProtectedMode
+[bits 32]
+
+; Delete stack frame
+pop ebx
+pop edx
+mov esp, ebp
+pop ebp
+ret
+
+;
+; extern void* __attribute__((cdecl)) asm_m16_int0x13_EDD_Read(uint8_t drive, uint16_t upper_upper_lba, uint16_t upper_lower_lba, uint16_t lower_upper_lba, uint16_t lower_lower_lba, uint16_t num_sectors, void* buffer);
 ;                                                             [bp+8],        [bp+12],                  [bp+16],                  [bp+20],                  [bp+24],                  [bp+28],              [bp+32]
 ;
 global asm_m16_int0x13_EDD_Read
@@ -334,7 +373,6 @@ asm_m16_int0x13_EDD_Read:
 ; Stack frame
 push ebp
 mov ebp, esp
-push eax
 push ecx
 
 ; Switch to real mode
@@ -362,6 +400,14 @@ mov ah, 0x42
 mov dl, [bp+8]
 mov si, dap
 int 0x13
+je .error
+mov eax, [bp+32]
+jmp .done
+
+.error:
+mov ax, 0
+
+.done:
 
 ; Switch to protected mode
 EnterProtectedMode
@@ -369,7 +415,6 @@ EnterProtectedMode
 
 ; Delete stack frame
 pop ecx
-pop eax
 mov esp, ebp
 pop ebp
 

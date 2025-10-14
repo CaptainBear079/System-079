@@ -23,16 +23,27 @@
 #define __SYS__SERVICES_DISK_H_
 
 #include <stdint.h>
+#include <stdarg.h>
+#include "./../../asm.h"
+#include "./../../utils.h"
 #include "./../../restdlibs/stdio.h"
+#include "./../../restdlibs/stdlib.h"
 #include "floppy.h"
 
+typedef struct _BIOS_DiskInfo_ {
+    uint16_t Drive;
+} BIOS_DiskInfo;
+
 typedef struct _DiskHandler_ {
-    uint16_t drive;
+    BIOS_DiskInfo* BIOS__DiskHandler; // Disk information from BIOS
+    uint16_t Drive;                   // Drive containing the partition
+    uint16_t PartitionNumber;         // Partition on the Drive
+    char* DriveName;                  // Terminated by '/' or '\'
 } DiskHandler;
 
 typedef struct _CHAOS_DISK_GEOMETRY_ {
-    uint16_t drive;
-    uint32_t partition_number;
+    uint16_t Drive;
+    uint32_t PartitionNumber;
 
     uint16_t* SectorLength;
     uint32_t* ReservedSectors;
@@ -46,7 +57,10 @@ typedef struct _CHAOS_DISK_GEOMETRY_ {
     uint8_t* path_Disk;
 } CHAOS_DISK_GEOMETRY;
 
-DiskHandler InitDiskServices(uint16_t drive);
-void ReadSector_HDD(const DiskHandler* handler, uint32_t FirstSectorToRead, uint8_t NumberOfSectorsToRead);
+uint_t __SYS__SECTOR_SIZE;
+extern bool __SYS__BIOS_COMPATIBLE;
+
+DiskHandler InitDiskServices(const uint_t Drive, const char* DriveName, const uint_t PartitionNumber, const bool BIOS_Support, ...);
+void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const uint_t StartLBA/*convert_LBA(const uint_t FirstSector)*/, const uint_t NumberOfSectorsToRead, const bool LoadToBuffer, const void* Buffer);
 
 #endif

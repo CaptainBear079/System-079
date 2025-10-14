@@ -33,6 +33,7 @@
 uint16_t __SYS_BOOT_DRIVE = 0;
 uint32_t __SYS_SCREEN_X = 0;
 uint32_t __SYS_SCREEN_Y = 0;
+bool __SYS__BIOS_COMPATIBLE = true;
 uint32_t last_uint32_t_retcode = 0;
 
 uint32_t __U32_0;
@@ -62,8 +63,8 @@ int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     extprintf(__SYS_SCREEN_X, __SYS_SCREEN_Y, "Hello, World!\nHello, World 2.0!\nHello, World 3.0!\nhex print test=%X\nuint32_t=%X && %X, uint16_t=%X && %X && %X && %X\n", (uint32_t)0x7465, (uint32_t)__U32_0, (uint32_t)__U32_1, (uint32_t)__U16_0, (uint32_t)__U16_1, (uint32_t)__U16_2, (uint32_t)__U16_3); // Test "printf" Hello World Meme by Captain Bear
 
     // Init Disk Services (FAT32, ChaosFormat, ...) - WIP
-    //const DiskHandler Disk_ = InitDiskServices(__SYS_BOOT_DRIVE); // Init Root Disk (BootDrive)
-    //ReadSector_HDD(&Disk_, 0, 1); // Test Read Sector from HDD (Read Sector 0 from BootDrive(Bootloader))
+    const DiskHandler Disk_ = InitDiskServices(0, "/", 0, __SYS__BIOS_COMPATIBLE, __SYS_BOOT_DRIVE); // Init Root Disk (BootDrive)
+    ReadSector_HDD(false, &Disk_, 0, 1, true, 0x7C00); // Test Read Sector from HDD (Read Sector 0 from BootDrive(Bootloader))
 
     // Jump to loaded kernel or game
     asm_m16_int0x13_EDD_Read(__SYS_BOOT_DRIVE, __U16_0, __U16_1, __U16_2, __U16_3, 1, __KERNEL_LOAD_ADDRESS);

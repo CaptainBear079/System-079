@@ -29,9 +29,9 @@ export LINKER_FLAGS = -x none -nostdlib
 export ASM = /usr/bin/nasm
 export ASMFLAGS = -f elf64
 
-export TARGET_CC = $(TOOLCHAIN_PREFIX)/bin/$(TOOLCHAIN)-gcc
-export TARGET_CXX = $(TOOLCHAIN_PREFIX)/bin/$(TOOLCHAIN)-g++
-export TARGET_LINKER = $(TOOLCHAIN_PREFIX)/bin/$(TOOLCHAIN)-gcc
+export TARGET_CC = $(abspath ./../toolchain/bin/$(TOOLCHAIN)-gcc)
+export TARGET_CXX = $(abspath ./../toolchain/bin/$(TOOLCHAIN)-g++)
+export TARGET_LINKER = $(abspath ./../toolchain/bin/$(TOOLCHAIN)-gcc)
 export TARGET_CFLAGS = -c -Wall -std=c99 -g -nostdlib -ffreestanding
 export TARGET_CXXFLAGS =
 export TARGET_LINKER_FLAGS = -nostdlib -ffreestanding -lgcc
