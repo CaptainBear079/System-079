@@ -54,7 +54,7 @@ int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     __SYS__BIOS_COMPATIBLE = true;
 
     // Init Memory Map
-    if(__SYS_Init_Memory_Map() != 0) {
+    if(__SYS_Init_Memory_Map(true) != 0) {
         printf("[ERROR] Memory Map error. Exit code: 0x0001");
         return 0x0001;
     }

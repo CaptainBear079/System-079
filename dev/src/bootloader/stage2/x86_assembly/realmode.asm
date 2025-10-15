@@ -469,7 +469,7 @@ pop ebp
 ret
 
 ;
-; extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(uint16_t MaxEntryCount, uint32_t ebx);
+; extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(uint16_t MaxEntryCount);
 ;
 global asm_m16_int0x15_E820h_Get_BIOS_Memory_Map
 asm_m16_int0x15_E820h_Get_BIOS_Memory_Map:
@@ -491,16 +491,17 @@ EnterRealMode
 [bits 16]
 
 ; Int 0x15 E820h
-mov ebx, 0
+mov ebx, [INT15hE820_EBX]
 .loop:
+mov ax, 0x0
+mov es, ax
 mov eax, 0xE820
-mov edx, [INT15hE820_SMAP]
+mov edx, 'SMAP'
 mov ecx, 20
-mov es, ds
 mov di, MemoryMapEntry
 int 0x15
 jc .error
-cmp eax, [INT15hE820_SMAP]
+cmp eax, 'SMAP'
 jne .error
 cmp ecx, 20
 jne .error
@@ -510,10 +511,9 @@ dec ebx
 cmp [bp+8], ebx
 je .done
 inc ebx
-mov [bp+12], ebx
-mov ecx, 160
-mov  si, source_address   ; Source pointer
-mov  di, dest_address     ; Destination pointer
+mov [INT15hE820_EBX], ebx
+mov  si, MemoryMapEntry   ; Source pointer
+mov  di, MemoryMapBuffer  ; Destination pointer
 mov  cx, 20               ; Number of bytes
 rep  movsb
 
@@ -527,10 +527,9 @@ mov eax, 1
 
 .done:
 inc ebx
-mov [bp+12], ebx
-mov ecx, 160
-mov  si, source_address   ; Source pointer
-mov  di, dest_address     ; Destination pointer
+mov [INT15hE820_EBX], ebx
+mov  si, MemoryMapEntry   ; Source pointer
+mov  di, MemoryMapBuffer  ; Destination pointer
 mov  cx, 20               ; Number of bytes
 rep  movsb
 
@@ -559,7 +558,6 @@ section .data
 extern bootdrive
 ; Texts
 RealModeEntry: db 'Entering Real Mode...', 0
-INT15hE820_SMAP: db 'SMAP', 0
 ; Int 0x13 Get Parameters
 int13_GetParam_CX: dw 0
 int13_GetParam_DX: dw 0
@@ -567,9 +565,12 @@ int13_GetParam_DX: dw 0
 dap: times 16 db 0
 
 ; Int 0x15 E820h
+global INT15hE820_EBX
+INT15hE820_EBX: dd 0
 MemoryMapEntry:
 dq 0
 dq 0
 dd 0
+global MemoryMapBuffer
 MemoryMapBuffer:
 times 40 dq 0

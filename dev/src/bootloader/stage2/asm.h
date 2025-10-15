@@ -5,6 +5,9 @@
 extern uint16_t int13_GetParam_CX;
 extern uint16_t int13_GetParam_DX;
 
+extern void* MemoryMapBuffer;
+extern uint32_t INT15hE820_EBX;
+
 extern uint8_t __attribute__((cdecl)) asm_input(uint16_t port);
 extern void __attribute__((cdecl)) asm_output(uint16_t port, uint8_t value);
 
@@ -21,6 +24,6 @@ extern bool __attribute__((cdecl)) asm_m16_int0x13_Check_for_EDD(uint8_t drive);
 extern void* __attribute__((cdecl)) asm_m16_int0x13_EDD_Read(uint8_t drive, uint16_t upper_upper_lba, uint16_t upper_lower_lba, uint16_t lower_upper_lba, uint16_t lower_lower_lba, uint8_t num_sectors, void* buffer);
 extern void __attribute__((cdecl)) asm_m16_int0x13_EDD_Get_Param(uint8_t drive, void* buffer);
 
-extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map();
+extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(uint16_t MaxEntryCount);
 
 extern void __attribute__((cdecl)) asm_jump_to_kernel(void* address);

@@ -53,7 +53,7 @@ typedef struct __MEM_MAP_ENTRY__ {
 } _MEM_MAP_ENTRY_;
 
 typedef struct __SYS_MEMORY_MAP__ {
-    uint_t BiggestAddress;
+    void* BiggestAddress;
     uint_t BigestFreeMemory;
     uint_t EntryCount;
     _MEM_MAP_ENTRY_* entries;

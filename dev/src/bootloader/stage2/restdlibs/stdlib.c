@@ -4,10 +4,13 @@
 int __SYS_Init_Memory_Map(const bool UseBIOS) {
     if(UseBIOS) {
         // Get BIOS Memory Map
-        if(asm_m16_int0x15_E820h_Get_BIOS_Memory_Map()) {
+        uint32_t ebx;
+        if(asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(16)) {
             return 0x0001; // Error getting BIOS Memory Map
         }
+        ebx = INT15hE820_EBX;
     }
+    return 0;
 }
 
 // Allocate SIZE bytes of memory.
