@@ -468,12 +468,108 @@ pop ebp
 
 ret
 
+;
+; extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(uint16_t MaxEntryCount, uint32_t ebx);
+;
+global asm_m16_int0x15_E820h_Get_BIOS_Memory_Map
+asm_m16_int0x15_E820h_Get_BIOS_Memory_Map:
+[bits 32]
+; Stack frame
+push ebp
+mov ebp, esp
+
+; Save regs
+push ebx
+push ecx
+push si
+push di
+push edx
+push es
+
+; Switch to real mode
+EnterRealMode
+[bits 16]
+
+; Int 0x15 E820h
+mov ebx, 0
+.loop:
+mov eax, 0xE820
+mov edx, [INT15hE820_SMAP]
+mov ecx, 20
+mov es, ds
+mov di, MemoryMapEntry
+int 0x15
+jc .error
+cmp eax, [INT15hE820_SMAP]
+jne .error
+cmp ecx, 20
+jne .error
+
+; Process Entry
+dec ebx
+cmp [bp+8], ebx
+je .done
+inc ebx
+mov [bp+12], ebx
+mov ecx, 160
+mov  si, source_address   ; Source pointer
+mov  di, dest_address     ; Destination pointer
+mov  cx, 20               ; Number of bytes
+rep  movsb
+
+cmp ebx, 0
+je .done
+jmp .loop
+
+.error:
+xor eax, eax
+mov eax, 1
+
+.done:
+inc ebx
+mov [bp+12], ebx
+mov ecx, 160
+mov  si, source_address   ; Source pointer
+mov  di, dest_address     ; Destination pointer
+mov  cx, 20               ; Number of bytes
+rep  movsb
+
+xor eax, eax
+mov eax, 0
+
+; Switch to protected mode
+EnterProtectedMode
+[bits 32]
+
+; Restore regs
+pop es
+pop edx
+pop di
+pop si
+pop ecx
+pop ebx
+
+; Delete stack frame
+mov esp, ebp
+pop ebp
+
+ret
+
 section .data
 extern bootdrive
 ; Texts
 RealModeEntry: db 'Entering Real Mode...', 0
+INT15hE820_SMAP: db 'SMAP', 0
 ; Int 0x13 Get Parameters
 int13_GetParam_CX: dw 0
 int13_GetParam_DX: dw 0
 ; Int 0x13 EDD
 dap: times 16 db 0
+
+; Int 0x15 E820h
+MemoryMapEntry:
+dq 0
+dq 0
+dd 0
+MemoryMapBuffer:
+times 40 dq 0

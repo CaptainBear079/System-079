@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-
+#include "asm.h"
 
 #if defined(__32BIT__)
     typedef uint32_t uint_t;
