@@ -1,5 +1,6 @@
 #include "stdlib.h"
 
+// Allocate SIZE bytes of memory.
 void* malloc(size_t __size) {
     if(__size > MemMap.BigestFreeMemory) {
         printf("[ERROR] No memory block big enough avalible. Input size: %u", __size);

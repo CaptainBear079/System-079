@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include "./stdio.h"
 #include "./../utils.h"
 
@@ -20,4 +19,5 @@ typedef struct __SYS_MEMORY_MAP__ {
 
 _SYS_MEMORY_MAP_ MemMap;
 
+// Allocate SIZE bytes of memory.
 void* malloc(size_t __size);
