@@ -2,7 +2,7 @@
 // System 079 Disk Services v1.0.0
 // Date: 04 September 2025 Written by Captain Bear
 // Email: louis.ritz12@gmail.com
-// GitHub: Currently private
+// GitHub: https://github.com/CaptainBear079/System-079
 //
 // By using, copying, or/and modifying this code, or the assembled machine code, you agree to the following:
 // - You give credit to the original author(s)
@@ -83,7 +83,7 @@ void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const ui
 			uint16_t cylinder;
 			uint8_t head;
 			uint8_t sector;
-			convert_LBA_to_CHS(StartLBA, cylinder, head, sector, Handler->CHS_Geometry);
+			convert_LBA_to_CHS(StartLBA, &cylinder, &head, &sector, Handler->CHS_Geometry);
 
 			// Read with old INT 13h
 			if(LoadToBuffer) {

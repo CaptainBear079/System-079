@@ -9,13 +9,10 @@ include ./dev/src/kernel/kernel.mk
 all:
 	@echo "Specify target. make <target>"
 
-target-stage1: stage1-bootloader-target
+create-build-dir:
+	mkdir -p $(BUILD_DIR)
 
-stage2: stage2-bootmanager-host
-
-target-stage2: stage2-bootmanager-target
-
-make-run-img: stage1-bootloader-target stage2-bootmanager-target build-kernel
+make-run-img: create-build-dir stage1-bootloader-target stage2-bootmanager-target build-kernel
 	@echo "Running image for OS... Create image with the system..."
 	dd if=/dev/zero of=$(BUILD_DIR)/os.img bs=512 count=13
 	dd if=$(BUILD_DIR)/$(BOOTLOADER_STAGE1_BIN) of=$(BUILD_DIR)/os.img conv=notrunc bs=512 count=1

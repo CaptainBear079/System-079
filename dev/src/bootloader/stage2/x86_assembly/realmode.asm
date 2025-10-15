@@ -2,7 +2,7 @@
 ; System 079 BootManagerloader v1.0.0
 ; Date: 08 August 2025 Written by Captain Bear
 ; Email: louis.ritz12@gmail.com
-; GitHub: Currently private
+; GitHub: https://github.com/CaptainBear079/System-079
 ;
 ; By using, copying, or/and modifying this code, or the assembled machine code, you agree to the following:
 ; - You give credit to the original author(s)
@@ -347,7 +347,7 @@ EnterRealMode
 ; Int 0x13: Check for EDD
 mov ah, 0x41
 mov dl, [bp+8]
-mov bx 0x55AA
+mov bx, 0x55AA
 int 0x13
 xor eax, eax
 setc al

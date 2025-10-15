@@ -8,10 +8,10 @@ void* malloc(size_t __size) {
     }
     // Create a new entry
     _MEM_MAP_ENTRY_ NewEntry = { (uint8_t)1, (uint_t)__size, (uint_t)0, (uint_t)0 };
-    uint_t TempStart = 0;
-    uint_t TempEnd = 0;
+    void* TempStart = 0x0;
+    void* TempEnd = 0x0;
     uint_t CurrentEntry = 0;
-    uint_t CurrentAddress = 0;
+    void* CurrentAddress = 0x0;
     while(CurrentEntry < MemMap.EntryCount || CurrentAddress <= (MemMap.BiggestAddress - __size)) {
         if(CurrentEntry < MemMap.EntryCount && MemMap.entries[CurrentEntry].Start == CurrentAddress) {
             CurrentAddress = MemMap.entries[CurrentEntry].End + 1;
@@ -37,4 +37,5 @@ void* malloc(size_t __size) {
     NewEntry.Start = TempStart;
     NewEntry.End = TempEnd;
     MemMap.entries[MemMap.EntryCount] = NewEntry;
+    return (void*)NewEntry.Start;
 }

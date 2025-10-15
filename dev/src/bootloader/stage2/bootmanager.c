@@ -2,7 +2,7 @@
 // System 079 Bootmanager (Bootloader Stage 2) v1.0.0
 // Date: 04 September 2025 Written by Captain Bear
 // Email: louis.ritz12@gmail.com
-// GitHub: Currently private
+// GitHub: https://github.com/CaptainBear079/System-079
 //
 // By using, copying, or/and modifying this code, or the assembled machine code, you agree to the following:
 // - You give credit to the original author(s)
@@ -24,8 +24,10 @@
 
 // Includes
 
+#include "utils.h"
 #include "asm.h"
-#include "./restdlibs/stdio.h" // Standard I/O (printf, ...) - WIP
+#include "./restdlibs/stdio.h"     // Standard I/O (printf, ...) - WIP
+#include "./restdlibs/stdlib.h"    // Standard libraries contains as an example malloc(size_t __size);
 #include "./sys32/services/disk.h" // Disk Services (FAT32, ChaosFormat, ...) - WIP
 
 // Global Variables
@@ -33,41 +35,33 @@
 uint16_t __SYS_BOOT_DRIVE = 0;
 uint32_t __SYS_SCREEN_X = 0;
 uint32_t __SYS_SCREEN_Y = 0;
+uint_t __SYS__SECTOR_SIZE = 512;
 bool __SYS__BIOS_COMPATIBLE = true;
-uint32_t last_uint32_t_retcode = 0;
-
-uint32_t __U32_0;
-uint32_t __U32_1;
-uint16_t __U16_0;
-uint16_t __U16_1;
-uint16_t __U16_2;
-uint16_t __U16_3;
+_SYS_MEMORY_MAP_ MemMap;
+uint8_t* ScreenBuffer = (uint8_t*)0xB8000;
 
 #define __KERNEL_LOAD_ADDRESS (void*)0x00000500 // Load Address for Kernels and Games
 #define __SCREEN_BUFFER_AS_SEG_OFFSET ((__SYS_SCREEN_Y*80) + __SYS_SCREEN_X) * 2
-#define __CONVERT_U64_TO_U16(u32_0, u32_1, u16_0, u16_1, u16_2, u16_3) \
-    u16_0 = (uint16_t)((u32_0 >> 16) & 0xFFFF);  \
-    u16_1 = (uint16_t)(u32_0 & 0xFFFF);          \
-    u16_2 = (uint16_t)((u32_1 >> 16) & 0xFFFF);  \
-    u16_3 = (uint16_t)(u32_1 & 0xFFFF);
-#define R16_NEWLINE 0x0A
 
 // Search for bootable kernels or games and load them for execution
 int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     __SYS_BOOT_DRIVE = boot_drive; // Save the BIOS boot drive
-    __U32_0 = 0;
-    __U32_1 = 6684;
-    __CONVERT_U64_TO_U16(__U32_0, __U32_1, __U16_0, __U16_1, __U16_2, __U16_3);
+
+    // Set system data since there is no normal c setup for global variables
+    __SYS_SCREEN_X = 0;
+    __SYS_SCREEN_Y = 0;
+    __SYS__SECTOR_SIZE = 512;
+    __SYS__BIOS_COMPATIBLE = true;
 
     clear_screen(); // Clear the screen
-    extprintf(__SYS_SCREEN_X, __SYS_SCREEN_Y, "Hello, World!\nHello, World 2.0!\nHello, World 3.0!\nhex print test=%X\nuint32_t=%X && %X, uint16_t=%X && %X && %X && %X\n", (uint32_t)0x7465, (uint32_t)__U32_0, (uint32_t)__U32_1, (uint32_t)__U16_0, (uint32_t)__U16_1, (uint32_t)__U16_2, (uint32_t)__U16_3); // Test "printf" Hello World Meme by Captain Bear
+    extprintf(__SYS_SCREEN_X, __SYS_SCREEN_Y, "Hello, World!\nHello, World 2.0!\nHello, World 3.0!\n"); // Test "printf" Hello World Meme by Captain Bear
 
     // Init Disk Services (FAT32, ChaosFormat, ...) - WIP
     const DiskHandler Disk_ = InitDiskServices(0, "/", 0, __SYS__BIOS_COMPATIBLE, __SYS_BOOT_DRIVE); // Init Root Disk (BootDrive)
-    ReadSector_HDD(false, &Disk_, 0, 1, true, 0x7C00); // Test Read Sector from HDD (Read Sector 0 from BootDrive(Bootloader))
+    ReadSector_HDD(false, &Disk_, 0, 1, true, (void*)0x7C00); // Test Read Sector from HDD (Read Sector 0 from BootDrive(Bootloader))
 
     // Jump to loaded kernel or game
-    asm_m16_int0x13_EDD_Read(__SYS_BOOT_DRIVE, __U16_0, __U16_1, __U16_2, __U16_3, 1, __KERNEL_LOAD_ADDRESS);
+    ReadSector_HDD(false, &Disk_, 6684, 1, true, __KERNEL_LOAD_ADDRESS);
     asm_jump_to_kernel(__KERNEL_LOAD_ADDRESS);
 
     // Bootmanager End

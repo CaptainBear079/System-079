@@ -2,7 +2,7 @@
 // System 079 Disk Services v1.0.0
 // Date: 04 September 2025 Written by Captain Bear
 // Email: louis.ritz12@gmail.com
-// GitHub: Currently private
+// GitHub: https://github.com/CaptainBear079/System-079
 //
 // By using, copying, or/and modifying this code, or the assembled machine code, you agree to the following:
 // - You give credit to the original author(s)
@@ -28,43 +28,8 @@
 #include "./../../restdlibs/stdio.h"
 #include "./../../restdlibs/stdlib.h"
 #include "./../../restdlibs/string.h"
-#include "floppy.h"
 
-typedef struct _CHS_DiskGeometry_ {
-    uint16_t HeadsPerCylinder;
-    uint16_t SectorsPerTrack;
-} CHS_DiskGeometry;
-
-typedef struct _BIOS_DiskInfo_ {
-    uint16_t Drive;
-} BIOS_DiskInfo;
-
-typedef struct _DiskHandler_ {
-    BIOS_DiskInfo* BIOS__DiskHandler; // Disk information from BIOS
-    CHS_DiskGeometry* CHS_Geometry;   // CHS disk geometry
-    uint16_t Drive;                   // Drive containing the partition
-    uint16_t PartitionNumber;         // Partition on the drive
-    uint16_t DriveNameLength;         // Length of the drive name in DriveName
-    char* DriveName;                  // Terminated by '/' or '\'
-} DiskHandler;
-
-typedef struct _CHAOS_DISK_GEOMETRY_ {
-    uint16_t Drive;
-    uint32_t PartitionNumber;
-
-    uint16_t* SectorLength;
-    uint32_t* ReservedSectors;
-    uint16_t* RootEntries;
-    uint32_t* DataTables;
-    uint32_t* EntriesPerTable;
-
-    uint32_t* ROOTDIR_POS;
-    uint32_t* DATA_POS;
-
-    uint8_t* path_Disk;
-} CHAOS_DISK_GEOMETRY;
-
-uint_t __SYS__SECTOR_SIZE;
+extern uint_t __SYS__SECTOR_SIZE;
 extern bool __SYS__BIOS_COMPATIBLE;
 
 DiskHandler InitDiskServices(const uint_t Drive, const char* DriveName, const uint_t PartitionNumber, const bool BIOS_Support, ...);
