@@ -8,7 +8,7 @@
 
 #define DEFAULT_COLOR 0x07
 
-extern uint8_t* ScreenBuffer = (uint8_t*)0xB8000;
+extern uint8_t* ScreenBuffer;
 extern uint32_t __SYS_SCREEN_X;
 extern uint32_t __SYS_SCREEN_Y;
 const char HexCharsUpper[] = "0123456789ABCDEF";

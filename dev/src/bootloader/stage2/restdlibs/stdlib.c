@@ -1,5 +1,15 @@
 #include "stdlib.h"
 
+// Get Bootloader Memory Map. DO NOT USE THIS FUNCTION AFTER OVERWRITING BIOS DATA!
+int __SYS_Init_Memory_Map(const bool UseBIOS) {
+    if(UseBIOS) {
+        // Get BIOS Memory Map
+        if(asm_m16_int0x15_Get_BIOS_Memory_Map()) {
+            return 0x0001; // Error getting BIOS Memory Map
+        }
+    }
+}
+
 // Allocate SIZE bytes of memory.
 void* malloc(size_t __size) {
     if(__size > MemMap.BigestFreeMemory) {

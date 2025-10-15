@@ -20,7 +20,7 @@ make-run-img: create-build-dir stage1-bootloader-target stage2-bootmanager-targe
 	dd if=$(BUILD_DIR)/$(KERNEL_BIN) of=$(BUILD_DIR)/os.img conv=sync bs=512 seek=6684
 	@echo $(EMULATOR) $(EMULATOR_FLAGS)
 
-gen-docs:
+
 
 clean-build-toolchain:
 	rm -rf toolchain/*

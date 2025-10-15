@@ -53,6 +53,12 @@ int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     __SYS__SECTOR_SIZE = 512;
     __SYS__BIOS_COMPATIBLE = true;
 
+    // Init Memory Map
+    if(__SYS_Init_Memory_Map() != 0) {
+        printf("[ERROR] Memory Map error. Exit code: 0x0001");
+        return 0x0001;
+    }
+
     clear_screen(); // Clear the screen
     extprintf(__SYS_SCREEN_X, __SYS_SCREEN_Y, "Hello, World!\nHello, World 2.0!\nHello, World 3.0!\n"); // Test "printf" Hello World Meme by Captain Bear
 
