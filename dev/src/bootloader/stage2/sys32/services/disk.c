@@ -30,13 +30,14 @@ DiskHandler InitDiskServices(const uint_t Drive, const char* DriveName, const ui
 		Handler.BIOS__DiskHandler->Drive = va_arg(args, uint_t);
 	}
 	Handler.Drive = Drive;
-	Handler.DriveName = malloc(strlen(DriveName) * sizeof(char));
+	Handler.DriveNameLength = strlen(DriveName);
+	Handler.DriveName = malloc(Handler.DriveNameLength * sizeof(char));
 	Handler.PartitionNumber = PartitionNumber;
 	va_end(args);
 	return Handler;
 }
 
-void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const uint_t StartLBA, /*convert_LBA(const uint_t FirstSector)*/ const uint_t NumberOfSectorsToRead, const bool LoadToBuffer, const void* Buffer) {
+void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const uint_t StartLBA, const uint_t NumberOfSectorsToRead, const bool LoadToBuffer, const void* Buffer) {
 	void* buffer = NULL;
 	// Check system state
 	if(UseDrivers) {
@@ -82,7 +83,7 @@ void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const ui
 			uint16_t cylinder;
 			uint8_t head;
 			uint8_t sector;
-			convert_CHS(StartLBA, cylinder, head, sector);
+			convert_LBA_to_CHS(StartLBA, cylinder, head, sector, Handler->CHS_Geometry);
 
 			// Read with old INT 13h
 			if(LoadToBuffer) {
