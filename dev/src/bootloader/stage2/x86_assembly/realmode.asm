@@ -496,30 +496,38 @@ mov ebx, [INT15hE820_EBX]
 mov ax, 0x0
 mov es, ax
 mov eax, 0xE820
-mov edx, 'SMAP'
+mov edx, 'PAMS'
 mov ecx, 20
 mov di, MemoryMapEntry
 int 0x15
 jc .error
-cmp eax, 'SMAP'
+cmp eax, 'PAMS'
 jne .error
 cmp ecx, 20
-jne .error
+jnae .error
 
 ; Process Entry
 dec ebx
 cmp [bp+8], ebx
 je .done
 inc ebx
-mov [INT15hE820_EBX], ebx
-mov  si, MemoryMapEntry   ; Source pointer
-mov  di, MemoryMapBuffer  ; Destination pointer
-mov  cx, 20               ; Number of bytes
-rep  movsb
+cmp ebx, 0
+jne .set_ebx
+.after_set_ebx:
+mov si, MemoryMapEntry        ; Source pointer
+mov di, MemoryMapBuffer
+add di, [MemoryMapEntryCount] ; Destination pointer
+mov cx, 20                    ; Number of bytes
+rep movsb
+add dword [MemoryMapEntryCount], 20
 
 cmp ebx, 0
 je .done
 jmp .loop
+
+.set_ebx:
+mov [INT15hE820_EBX], ebx
+jmp .after_set_ebx
 
 .error:
 xor eax, eax
@@ -528,17 +536,22 @@ mov eax, 1
 .done:
 inc ebx
 mov [INT15hE820_EBX], ebx
-mov  si, MemoryMapEntry   ; Source pointer
-mov  di, MemoryMapBuffer  ; Destination pointer
-mov  cx, 20               ; Number of bytes
-rep  movsb
+mov si, MemoryMapEntry       ; Source pointer
+mov di, MemoryMapBuffer
+add di, [MemoryMapEntryCount] ; Destination pointer
+mov cx, 20                   ; Number of bytes
+rep movsb
+add dword [MemoryMapEntryCount], 20
 
 xor eax, eax
 mov eax, 0
+mov ebx, eax
 
 ; Switch to protected mode
 EnterProtectedMode
 [bits 32]
+
+mov eax, ebx
 
 ; Restore regs
 pop es
@@ -567,6 +580,7 @@ dap: times 16 db 0
 ; Int 0x15 E820h
 global INT15hE820_EBX
 INT15hE820_EBX: dd 0
+MemoryMapEntryCount: dd 0
 MemoryMapEntry:
 dq 0
 dq 0

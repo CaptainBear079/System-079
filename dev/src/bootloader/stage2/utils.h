@@ -46,15 +46,15 @@ typedef struct _CHAOS_DISK_GEOMETRY_ {
 } CHAOS_DISK_GEOMETRY;
 
 typedef struct __MEM_MAP_ENTRY__ {
-    uint8_t Type;
-    uint_t Size;
+    uint32_t Type;
+    uint64_t Size;
     void* Start;
     void* End;
 } _MEM_MAP_ENTRY_;
 
 typedef struct __SYS_MEMORY_MAP__ {
     void* BiggestAddress;
-    uint_t BigestFreeMemory;
+    uint_t BiggestFreeMemory;
     uint_t EntryCount;
     _MEM_MAP_ENTRY_* entries;
 } _SYS_MEMORY_MAP_;
