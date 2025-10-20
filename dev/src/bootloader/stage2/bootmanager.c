@@ -60,7 +60,8 @@ int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     }
 
     clear_screen(); // Clear the screen
-    extprintf(__SYS_SCREEN_X, __SYS_SCREEN_Y, "Hello, World!\nHello, World 2.0!\nHello, World 3.0!\n"); // Test "printf" Hello World Meme by Captain Bear
+    set_pos(__SYS_SCREEN_X, __SYS_SCREEN_Y); // Set writing position
+    printf("Hello, World!\nHello, World 2.0!\nHello, World 3.0!\n"); // Test "printf" Hello World Meme by Captain Bear
 
     // Init Disk Services (FAT32, ChaosFormat, ...) - WIP
     const DiskHandler Disk_ = InitDiskServices(0, "/", 0, __SYS__BIOS_COMPATIBLE, __SYS_BOOT_DRIVE); // Init Root Disk (BootDrive)

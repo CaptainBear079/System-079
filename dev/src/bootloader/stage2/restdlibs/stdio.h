@@ -21,7 +21,8 @@ typedef struct _specifier_modifiers_ {
 #ifdef __32BIT__
 // Text output functions
 int printf(const char* format, ...);
-int extprintf(uint32_t DisTextAPrf_ScreenX, uint32_t DisTextAPrf_ScreenY, const char* format, ...);
+int extprintf(const char* format, ...);
 int core_printf(const char* format, va_list args);
 int clear_screen();
+int set_pos(unsigned long int x, unsigned long int y);
 #endif

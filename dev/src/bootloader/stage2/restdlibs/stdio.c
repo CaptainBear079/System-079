@@ -35,6 +35,8 @@ int print_unsigned(unsigned long int value, int radix, bool uppercase);
 
 int SetCursorPosition(unsigned long int x, unsigned long int y);
 
+int set_pos(unsigned long int x, unsigned long int y);
+
 int SetCursorPosition(unsigned long int x, unsigned long int y) {
     int pos = y * SCREEN_WIDTH + x;
 
@@ -59,12 +61,15 @@ int clear_screen() {
     return 0;
 }
 
-int extprintf(uint32_t DisTextAPrf_ScreenX, uint32_t DisTextAPrf_ScreenY, const char* format, ...) {
+int set_pos(unsigned long int x, unsigned long int y) {
+    // Set ScreenX and ScreenY
+    __SYS_SCREEN_X = x;
+    __SYS_SCREEN_Y = y;
+}
+
+int extprintf(const char* format, ...) {
     va_list args;
     va_start(args, format);
-    // Set ScreenX and ScreenY
-    __SYS_SCREEN_X = DisTextAPrf_ScreenX;
-    __SYS_SCREEN_Y = DisTextAPrf_ScreenY;
     // Call core_printf with the arguments like normal call
     int ret = core_printf(format, args);
     va_end(args);
