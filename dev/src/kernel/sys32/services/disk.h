@@ -22,13 +22,17 @@
 #ifndef __SYS__SERVICES_DISK_H_
 #define __SYS__SERVICES_DISK_H_
 
+#include <stdarg.h>
 #include "./../../asm.h"
 #include "./../../utils.h"
-#define NULL (void*)0
+#include "./../../restdlibs/stdio.h"
+#include "./../../restdlibs/stdlib.h"
+#include "./../../restdlibs/string.h"
 
 extern uint_t __SYS__SECTOR_SIZE;
 extern bool __SYS__BIOS_COMPATIBLE;
 
-void* ReadSector_HDD(const DiskHandler* Handler, const uint_t StartLBA, const uint_t NumberOfSectorsToRead, const void* Buffer);
+DiskHandler InitDiskServices(const uint_t Drive, const char* DriveName, const uint_t PartitionNumber, const bool BIOS_Support, ...);
+void* ReadSector_HDD(const bool UseDrivers, const DiskHandler* Handler, const uint_t StartLBA, const uint_t NumberOfSectorsToRead, const bool LoadToBuffer, const void* Buffer);
 
 #endif

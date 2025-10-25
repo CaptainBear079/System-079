@@ -1,6 +1,6 @@
-ENTRY(kernel_entry)
+ENTRY(kernel0)
 OUTPUT_FORMAT("binary")
-phys = 0x00000500;
+phys = 0x00100000;
 
 SECTIONS
 {

@@ -27,7 +27,6 @@
 #include "utils.h"
 #include "asm.h"
 #include "./restdlibs/stdio.h"     // Standard I/O (printf, ...) - WIP
-#include "./restdlibs/stdlib.h"    // Standard libraries contains as an example malloc(size_t __size);
 #include "./sys32/services/disk.h" // Disk Services (FAT32, ChaosFormat, ...) - WIP
 
 // Global Variables
@@ -40,7 +39,7 @@ bool __SYS__BIOS_COMPATIBLE = true;
 _SYS_MEMORY_MAP_ MemMap;
 uint8_t* ScreenBuffer = (uint8_t*)0xB8000;
 
-#define __KERNEL_LOAD_ADDRESS (void*)0x00000500 // Load Address for Kernels and Games
+#define __KERNEL_LOAD_ADDRESS (void*)0x00100000 // Load Address for Kernels and Games
 #define __SCREEN_BUFFER_AS_SEG_OFFSET ((__SYS_SCREEN_Y*80) + __SYS_SCREEN_X) * 2
 
 // Search for bootable kernels or games and load them for execution
@@ -53,22 +52,23 @@ int __attribute__((_cdecl)) _cstart(uint32_t boot_drive) {
     __SYS__SECTOR_SIZE = 512;
     __SYS__BIOS_COMPATIBLE = true;
 
-    // Init Memory Map
-    if(__SYS_Init_Memory_Map(true) != 0) {
-        printf("[ERROR] Memory Map error. Exit code: 0x0001");
-        return 0x0001;
-    }
-
     clear_screen(); // Clear the screen
     set_pos(__SYS_SCREEN_X, __SYS_SCREEN_Y); // Set writing position
-    printf("Hello, World!\nHello, World 2.0!\nHello, World 3.0!\n"); // Test "printf" Hello World Meme by Captain Bear
 
     // Init Disk Services (FAT32, ChaosFormat, ...) - WIP
-    const DiskHandler Disk_ = InitDiskServices(0, "/", 0, __SYS__BIOS_COMPATIBLE, __SYS_BOOT_DRIVE); // Init Root Disk (BootDrive)
-    ReadSector_HDD(false, &Disk_, 0, 1, true, (void*)0x7C00); // Test Read Sector from HDD (Read Sector 0 from BootDrive(Bootloader))
-
-    // Jump to loaded kernel or game
-    ReadSector_HDD(false, &Disk_, 6684, 1, true, __KERNEL_LOAD_ADDRESS);
+    BIOS_DiskInfo biosDisk;
+    DiskHandler Disk_;
+    Disk_.BIOS__DiskHandler = &biosDisk;
+	Disk_.BIOS__DiskHandler->Drive = __SYS_BOOT_DRIVE;
+    Disk_.Drive = 0;
+	Disk_.DriveNameLength = 1;
+	Disk_.DriveName[0] = '/';
+    Disk_.DriveName[1] = '\0';
+	Disk_.PartitionNumber = 0;
+    if(ReadSector_HDD(&Disk_, 6684, 1, __KERNEL_LOAD_ADDRESS) == NULL) {
+        printf("[ERROR] Failed to read kernel from disk. Exit code: 0x0001");
+        return 0x0001;
+    }
     asm_jump_to_kernel(__KERNEL_LOAD_ADDRESS);
 
     // Bootmanager End
