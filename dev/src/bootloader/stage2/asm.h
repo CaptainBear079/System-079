@@ -26,5 +26,3 @@ extern void __attribute__((cdecl)) asm_m16_int0x13_EDD_Get_Param(uint8_t drive, 
 
 // BIOS Int 0x15 - Memory Services
 extern int __attribute__((cdecl)) asm_m16_int0x15_E820h_Get_BIOS_Memory_Map(uint16_t MaxEntryCount, void* buffer);
-
-extern void __attribute__((cdecl)) asm_jump_to_kernel(void* address);

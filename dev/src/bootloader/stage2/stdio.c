@@ -1,7 +1,7 @@
 #include "stdio.h"
 
 #ifdef __32BIT__
-#include "./../asm.h"
+#include "asm.h"
 // Text output functions
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
@@ -35,7 +35,7 @@ int print_unsigned(unsigned long int value, int radix, bool uppercase);
 
 int SetCursorPosition(unsigned long int x, unsigned long int y);
 
-int set_pos(unsigned long int x, unsigned long int y);
+void set_pos(unsigned long int x, unsigned long int y);
 
 int SetCursorPosition(unsigned long int x, unsigned long int y) {
     int pos = y * SCREEN_WIDTH + x;
@@ -61,7 +61,7 @@ int clear_screen() {
     return 0;
 }
 
-int set_pos(unsigned long int x, unsigned long int y) {
+void set_pos(unsigned long int x, unsigned long int y) {
     // Set ScreenX and ScreenY
     __SYS_SCREEN_X = x;
     __SYS_SCREEN_Y = y;

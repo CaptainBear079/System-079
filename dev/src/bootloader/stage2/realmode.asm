@@ -379,6 +379,10 @@ push ecx
 EnterRealMode
 [bits 16]
 
+push es
+push dx
+push si
+
 ; Int 0x13 with EDD
 mov byte [dap+0],  0x10                    ; Size of Packet (0x10)
 mov byte [dap+1],  0x00                    ; Reserved
@@ -400,7 +404,7 @@ mov ah, 0x42
 mov dl, [bp+8]
 mov si, dap
 int 0x13
-je .error
+jne .error
 mov eax, [bp+32]
 jmp .done
 
@@ -408,10 +412,17 @@ jmp .done
 mov ax, 0
 
 .done:
+mov ecx, eax
+
+pop si
+pop dx
+pop es
 
 ; Switch to protected mode
 EnterProtectedMode
 [bits 32]
+
+mov eax, ecx
 
 ; Delete stack frame
 pop ecx

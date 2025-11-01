@@ -26,10 +26,6 @@
 extern __bss_start
 extern __end
 
-extern gdt_start
-extern gdt_end
-extern gdt_descriptor
-
 extern call_c
 
 section .text
@@ -120,7 +116,43 @@ asm_output:
     pop ebp
     ret
 
-global asm_jump_to_kernel
-asm_jump_to_kernel:
-    mov eax, [esp+4]
-    jmp eax
+section .data
+gdt_start:
+    dq 0 ; Null descriptor
+
+    ; 32 Bit Code segment
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10011010b
+    db 11001111b
+    db 0x00
+
+    ; 32 Bit Data segment
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10010010b
+    db 11001111b
+    db 0x00
+
+    ; 16 Bit Code segment
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10011010b
+    db 00000000b
+    db 0x00
+
+    ; 16 Bit Data segment
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10010010b
+    db 00000000b
+    db 0x00
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1   ; size of GDT (limit)
+    dd gdt_start                 ; address of GDT

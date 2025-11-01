@@ -11,9 +11,11 @@ TOOLCHAIN_TARGET = i686-elf
 
 build-toolchain: build-binutils build-gcc
 
-build-binutils: get-binutils
+build-binutils: ../toolchain/bin/$(TOOLCHAIN)-ld
+
+../toolchain/bin/$(TOOLCHAIN)-ld: get-binutils
 	mkdir -p $(BINUTILS_BUILD)
-	cd $(BINUTILS_BUILD) && ../binutils-$(BINUTILS_VERSION)/configure \
+	cd $(BINUTILS_BUILD) && CFLAGS= ASMFLAGS= CC= CXX= ASM= LINKER= LINKER_FLAGS= ../binutils-$(BINUTILS_VERSION)/configure \
 		--prefix=$(TOOLCHAIN_PREFIX) \
 		--target=$(TOOLCHAIN_TARGET) \
 		--with-sysroot \
@@ -26,9 +28,11 @@ get-binutils:
 	mkdir -p ./../../../toolchain
 	cd ./../../../toolchain && wget $(BINUTILS_URL) && tar -xvf binutils-$(BINUTILS_VERSION).tar.xz
 
-build-gcc: build-binutils get-gcc
+build-gcc: ../toolchain/bin/$(TOOLCHAIN)-gcc
+
+../toolchain/bin/$(TOOLCHAIN)-gcc: build-binutils get-gcc
 	mkdir -p $(GCC_BUILD)
-	cd $(GCC_BUILD) && ../gcc-$(GCC_VERSION)/configure \
+	cd $(GCC_BUILD) && CFLAGS= ASMFLAGS= CC= CXX= ASM= LINKER= LINKER_FLAGS= ../gcc-$(GCC_VERSION)/configure \
 		--prefix=$(TOOLCHAIN_PREFIX) \
 		--target=$(TOOLCHAIN_TARGET) \
 		--disable-nls \

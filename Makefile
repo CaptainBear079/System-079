@@ -12,15 +12,21 @@ all:
 create-build-dir:
 	mkdir -p $(BUILD_DIR)
 
-make-run-img: create-build-dir stage1-bootloader-target stage2-bootmanager-target build-kernel
+make-run-img: create-build-dir stage1-bootloader-target stage2-bootmanager-target build-kernel-i686
 	@echo "Running image for OS... Create image with the system..."
 	dd if=/dev/zero of=$(BUILD_DIR)/os.img bs=512 count=13
 	dd if=$(BUILD_DIR)/$(BOOTLOADER_STAGE1_BIN) of=$(BUILD_DIR)/os.img conv=notrunc bs=512 count=1
 	dd if=$(BUILD_DIR)/$(BOOTLOADER_STAGE2_BIN) of=$(BUILD_DIR)/os.img conv=notrunc bs=512 seek=512
 	dd if=$(BUILD_DIR)/$(KERNEL_BIN) of=$(BUILD_DIR)/os.img conv=sync bs=512 seek=6684
-	@echo $(EMULATOR) $(EMULATOR_FLAGS)
+	$(EMULATOR) $(EMULATOR_FLAGS)
 
-
+make-debug-img: create-build-dir stage1-bootloader-target stage2-bootmanager-target build-kernel-i686
+	@echo "Running image for OS... Create image with the system..."
+	dd if=/dev/zero of=$(BUILD_DIR)/os.img bs=512 count=13
+	dd if=$(BUILD_DIR)/$(BOOTLOADER_STAGE1_BIN) of=$(BUILD_DIR)/os.img conv=notrunc bs=512 count=1
+	dd if=$(BUILD_DIR)/$(BOOTLOADER_STAGE2_BIN) of=$(BUILD_DIR)/os.img conv=notrunc bs=512 seek=512
+	dd if=$(BUILD_DIR)/$(KERNEL_BIN) of=$(BUILD_DIR)/os.img conv=sync bs=512 seek=6684
+	sudo -E bochs -f ./bochs_config -dbg
 
 clean-build-toolchain:
 	rm -rf toolchain/*

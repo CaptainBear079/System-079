@@ -40,7 +40,7 @@ void* ReadSector_HDD(const DiskHandler* Handler, const uint_t StartLBA, const ui
 		LBA_2 = (uint16_t)((StartLBA >> 16) & 0xFFFF);
 		LBA_3 = (uint16_t)(StartLBA & 0xFFFF);
 		// Read with EDD
-		buffer = asm_m16_int0x13_EDD_Read(Handler->BIOS__DiskHandler->Drive, LBA_0, LBA_1, LBA_2, LBA_3, NumberOfSectorsToRead, Buffer);
+		buffer = asm_m16_int0x13_EDD_Read(Handler->BIOS__DiskHandler->Drive, LBA_0, LBA_1, LBA_2, LBA_3, NumberOfSectorsToRead, (void*)0x0500);
 	}
 	else {
 		// Calculate CHS
@@ -49,7 +49,7 @@ void* ReadSector_HDD(const DiskHandler* Handler, const uint_t StartLBA, const ui
 		uint8_t sector;
 		convert_LBA_to_CHS(StartLBA, &cylinder, &head, &sector, Handler->CHS_Geometry);
 		// Read with old INT 13h
-		buffer = asm_m16_int0x13_Read(Handler->BIOS__DiskHandler->Drive, cylinder, head, sector, NumberOfSectorsToRead, Buffer);
+		buffer = asm_m16_int0x13_Read(Handler->BIOS__DiskHandler->Drive, cylinder, head, sector, NumberOfSectorsToRead, (void*)0x0500);
 	}
 	return buffer;
 }
