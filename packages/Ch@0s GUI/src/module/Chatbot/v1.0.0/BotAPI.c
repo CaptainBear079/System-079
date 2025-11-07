@@ -27,58 +27,8 @@ bool Read_CONFIG(int* NeuronCount, LIFNeuron* Neurons, double** Weights, char* B
 		printf("[CONFIG][ERROR] File doesn't exists or couldn't get read by fopen.");
 		return false;
 	}
-	int c = fgetc(fptr);
-	if(c == EOF) {
-		printf("[CONFIG][ERROR] CONFIG file is empty.");
-		return false;
-	}
-	// Jump over white space characters
-	while((char)c == ' ' || (char)c == '\n' || (char)c == '\t') {
-		c = fgetc(fptr);
-		if(c == EOF) {
-			printf("[CONFIG][ERROR] End of file reached before completting config.");
-			return false;
-		}
-	}
-	if((char)c == '{') {
-		// Find entry
-		while((char)c != '\"') {
-			c = fgetc(fptr);
-			if(c == EOF) {
-				printf("[CONFIG][ERROR] End of file reached before completting config.");
-				return false;
-			}
-		}
-		char c_A[256] = { 0 };
-		int i = 0;
-		c = fgetc(fptr);
-		if(c == EOF) {
-			printf("[CONFIG][ERROR] End of file reached before completting config.");
-			return false;
-		}
-		while((char)c != '\"') {
-			c_A[i] = (char)c;
-			c = fgetc(fptr);
-			if(c == EOF) {
-				printf("[CONFIG][ERROR] End of file reached before completting config.");
-				return false;
-			}
-		}
-		while((char)c != ':') {
-			c = fgetc(fptr);
-			if(c == EOF) {
-				printf("[CONFIG][ERROR] End of file reached before completting config.");
-				return false;
-			}
-		}
-		while((char)c != '{') {
-			c = fgetc(fptr);
-			if(c == EOF) {
-				printf("[CONFIG][ERROR] End of file reached before completting config.");
-				return false;
-			}
-		}
-	}
+	// Read CONFIG from Data Structure File
+	if(!Read_DSF(fptr)) {}
 	return false;
 }
 

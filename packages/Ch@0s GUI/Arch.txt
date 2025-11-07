@@ -1,0 +1,13 @@
+ChaosGUI
+ - Console
+   1.Standard functionality (execute)
+   2.Math and Logic
+   3.The Bear & Glitch Bunny
+ - Package Managing
+   1.Update lists
+   2.Download and installing packages
+   3.Deinstalling packages
+ - Destruction (PC & LIFE)
+   1.YAAI!.APK
+   2.InstaDeath.APK
+   3.CHAOS.APK
