@@ -1,0 +1,46 @@
+// Execute a executable Return codes: 0 = success, 1 = error from execve, -1 = fatal error restart should be performed
+int __SYS_EXECUTE__As_child(const char* path, char** argv, char** envp) {
+    export string path;
+    export char** argv;
+    export char** envp;
+    asm(x86) {
+        push rbp
+        mov rbp, rsp
+
+        ; Save registers
+        push rdi
+        push rsi
+        push rdx
+
+        ; Call fork
+        mov rax, 57
+		syscall
+
+		; Check if child or parent
+		test rax, rax
+		jz .child
+        jmp .parent
+
+        .child:
+        mov rax, 59
+        lea rdi, [rel path]
+        lea rsi, [rel argv]
+        lea rdx, [rel envp]
+        syscall
+
+        ; if execve fails
+        mov rax, 1
+        jmp .done
+
+		.parent:
+		; Restore registers
+        pop rdx
+        pop rsi
+        pop rdi
+
+		; Delete stack frame
+        mov rsp, rbp
+        pop rbp
+    } return rax;
+    return -1; // Fatal Error
+}

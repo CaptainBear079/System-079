@@ -6,7 +6,7 @@ int ChaosGUI() {
 	// Layer 2 - YAAI!
 	// Layer 3 - RUN IDIOT!
 	// Chase   - Th3 €h@0$ b3g!n$
-	if(!__SYS_EXECUTE(Tokens[0])) {
+	if(__SYS_EXECUTE__As_child(Tokens[0])) {
 		printf("[ERROR] \"%s\" is not a command, console script or executable.\nPossible problems are:\n\t- Path to \"%s\" not included.\n\t- \"%s\" has the wrong type or is no longer supported.\n\t- No space for more processes.\nMost likely: %s", Tokens[0], EXECUTE_ERROR[ERROR]);
 	}
 }
