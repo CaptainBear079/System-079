@@ -8,28 +8,61 @@ typedef struct _Token_ {
     int value;
 } Token;
 
+typedef struct _FUNCTION_ {
+    char* name;
+    unsigned long long id;
+} FUNCTION;
+
+typedef struct _IDENTIFIER_ {
+    char* name;
+    unsigned long long id;
+} IDENTIFIER;
+
+
 enum TOKEN_TYPE {
-    TOKEN_TYPE_BOOL,        // 1 Bit
-    TOKEN_TYPE_CHAR,        // 1 Byte number or character
-    TOKEN_TYPE_UCHAR,       // Unsigned 1 byte numbers only
-    TOKEN_TYPE_SHORT,       // 2 byte number
-    TOKEN_TYPE_USHORT,      // Unsigned 2 byte number
-    TOKEN_TYPE_INT,         // 4 byte number
-    TOKEN_TYPE_UINT,        // Unsigned 4 byte number
-    TOKEN_TYPE_LONG,        // 6 byte number
-    TOKEN_TYPE_ULONG,       // Unsigned 6 byte number
-    TOKEN_TYPE_LONGLONG,    // 8 byte number
-    TOKEN_TYPE_ULONGLONG,   // Unsigned 8 byte number
-    TOKEN_TYPE_FLOAT,       // 4 byte floating point number
-    TOKEN_TYPE_UFLOAT,      // Unsigned 4 byte floating point number
-    TOKEN_TYPE_DOUBLE,      // 8 byte floating point number
-    TOKEN_TYPE_UDOUBLE,     // Unsigned 8 byte floating point number
-    TOKEN_TYPE_LONGDOUBLE,  // 16 byte floating point number
-    TOKEN_TYPE_ULONGDOUBLE, // Unsigned 16 byte floating point number
-    TOKEN_TYPE_IDENTIFIER   // Identifier
+    TOKEN_TYPE_BOOL,           // 1 Bit
+    TOKEN_TYPE_CHAR,           // 1 Byte number or character
+    TOKEN_TYPE_UCHAR,          // Unsigned 1 byte numbers only
+    TOKEN_TYPE_SHORT,          // 2 byte number
+    TOKEN_TYPE_USHORT,         // Unsigned 2 byte number
+    TOKEN_TYPE_INT,            // 4 byte number
+    TOKEN_TYPE_UINT,           // Unsigned 4 byte number
+    TOKEN_TYPE_LONG,           // 6 byte number
+    TOKEN_TYPE_ULONG,          // Unsigned 6 byte number
+    TOKEN_TYPE_LONGLONG,       // 8 byte number
+    TOKEN_TYPE_ULONGLONG,      // Unsigned 8 byte number
+    TOKEN_TYPE_FLOAT,          // 4 byte floating point number
+    TOKEN_TYPE_UFLOAT,         // Unsigned 4 byte floating point number
+    TOKEN_TYPE_DOUBLE,         // 8 byte floating point number
+    TOKEN_TYPE_UDOUBLE,        // Unsigned 8 byte floating point number
+    TOKEN_TYPE_LONGDOUBLE,     // 16 byte floating point number
+    TOKEN_TYPE_ULONGDOUBLE,    // Unsigned 16 byte floating point number
+    TOKEN_TYPE_POINTER,        // Pointer 4/8 byte depending on cpu bit mode
+    TOKEN_TYPE_STRUCT,         // Structure (Pointer)
+    TOKEN_TYPE_UNION,          // Union (Pointer) size = max member size
+    TOKEN_TYPE_ENUM,           // Enum (4 byte number) named integer constants
+    TOKEN_TYPE_NOT,            // Not/invertation operator
+    TOKEN_TYPE_EQUALS,         // Equals operator '=='
+    TOKEN_TYPE_NOT_EQUALS,     // Not equals operator '!='
+    TOKEN_TYPE_LESS_THAN,      // Less than operator '<'
+    TOKEN_TYPE_GREATER_THAN,   // Greater than operator '>'
+    TOKEN_TYPE_LESS_EQUAL,     // Less than or equal operator '<='
+    TOKEN_TYPE_GREATER_EQUAL,  // Greater than or equal operator '>='
+    TOKEN_TYPE_SET,            // Assignment operator '='
+    TOKEN_TYPE_IDENTIFIER_REF, // Reference to a identifier
+    TOKEN_TYPE_FUNCTION_REF,   // Reference to a function
+    TOKEN_TYPE_NUMBER,         // Number
+    TOKEN_TYPE_IDENTIFIER      // Identifier
 };
 
+int MAX_FUNCTIONS = 250;
+int MAX_IDENTIFIERS = 450;
+
 int main(int argc, char* argv[]) {
+    MAX_FUNCTIONS = atoi(argv[2]);
+    FUNCTION* functions = malloc(MAX_FUNCTIONS * sizeof(FUNCTION));
+    MAX_IDENTIFIERS = atoi(argv[3]);
+    IDENTIFIER* identifiers = malloc(MAX_IDENTIFIERS * sizeof(IDENTIFIER));
     bool done = false;
     FILE* fptr = fopen(argv[1], "r");
     char c = '\0';
@@ -52,42 +85,37 @@ int main(int argc, char* argv[]) {
                 code_buffer[i] = c;
                 continue;
             }
-            else if(c == (int)' ' || c == (int)'\n' || c == (int)'\t') {
+            else if(c == (int)' ' || c == (int)';' || c == (int)'\n' || c == (int)'\t') {
                 Token token;
                 // Check type
                 if(i == 4 && strncmp(code_buffer, "int", 3) == 0) {
                     token.type = TOKEN_TYPE_INT;
                 }
-            }
-            switch(c) {
-                case EOF: {
-                    done = true;
-                    goto REACHED_EOF;
-                } break;
-                case (int)'A': {
-                    code_buffer[i] = c;
-                    goto NEXT_TOKEN;
+                else if(i == 2 && strncmp(code_buffer, "=", 1) == 0) {
+                    token.type = TOKEN_TYPE_SET;
                 }
-                case (int)'Z': {
-                    code_buffer[i] = c;
-                    goto NEXT_TOKEN;
-                }
-                case (int)'a': {
-                    code_buffer[i] = c;
-                    goto NEXT_TOKEN;
-                }
-                case (int)'z': {
-                    code_buffer[i] = c;
-                    goto NEXT_TOKEN;
-                } break;
-                case (int)'n': {
-                    code_buffer[i] = c;
-                    goto NEXT_TOKEN;
+                else {
+                    // Go trough every function name and look for the string
+                    for(int x = 0;x < MAX_FUNCTIONS;x++) {
+                        if(strncmp(code_buffer, functions[x].name, i) == 0) {
+                            token.type = TOKEN_TYPE_FUNCTION_REF;
+                            token.value = functions[x].id;
+                        }
+                    }
+                    // Go trough every identifier and look for the string
+                    for(int x = 0;x < MAX_IDENTIFIERS;x++) {
+                        if(strncmp(code_buffer, identifiers[x].name, i) == 0) {
+                            token.type = TOKEN_TYPE_IDENTIFIER_REF;
+                            token.value = identifiers[x].id;
+                        }
+                    }
+                    // New identifier
+                    token.type = TOKEN_TYPE_IDENTIFIER;
                 }
             }
-            REACHED_EOF:
-            break;
-            NEXT_TOKEN:
+            else if(i >= 255) {
+                // Same like in the last if in the else
+            }
         }
     }
     return 0;
