@@ -18,6 +18,11 @@ typedef struct _IDENTIFIER_ {
     unsigned long long id;
 } IDENTIFIER;
 
+typedef struct _COMPILER_ {
+    int flags[1];
+    FUNCTION** functions;
+    IDENTIFIER** identifiers;
+} COMPILER;
 
 enum TOKEN_TYPE {
     TOKEN_TYPE_BOOL,           // 1 Bit
@@ -63,6 +68,7 @@ int main(int argc, char* argv[]) {
     FUNCTION* functions = malloc(MAX_FUNCTIONS * sizeof(FUNCTION));
     MAX_IDENTIFIERS = atoi(argv[3]);
     IDENTIFIER* identifiers = malloc(MAX_IDENTIFIERS * sizeof(IDENTIFIER));
+    COMPILER compiler = { {0}, &functions, &identifiers };
     bool done = false;
     FILE* fptr = fopen(argv[1], "r");
     char c = '\0';
@@ -87,7 +93,7 @@ int main(int argc, char* argv[]) {
             }
             else if(c == (int)' ' || c == (int)';' || c == (int)'\n' || c == (int)'\t') {
                 Token token;
-                // Check type
+                // Check token
                 if(i == 4 && strncmp(code_buffer, "int", 3) == 0) {
                     token.type = TOKEN_TYPE_INT;
                 }
@@ -95,6 +101,33 @@ int main(int argc, char* argv[]) {
                     token.type = TOKEN_TYPE_SET;
                 }
                 else {
+                    // Jump to the right path
+                    switch(compiler.flags[0]) {
+                        // 0 is empty incase it never got set or wrong initalized
+                        // Identifier for new variable expected
+                        case 1: {
+                            // Go trough every identifier and look for the string
+                            int x = 0;
+                            while(x < MAX_IDENTIFIERS) {
+                                if(strncmp(code_buffer, identifiers[x].name, i) == 0) {
+                                    printf("[ERROR] Identifier redefinition. \'%s\' is already defined.", code_buffer);
+                                }
+                                x++;
+                            }
+                            // New identifier
+                            if(x >= MAX_IDENTIFIERS) {
+                                printf("[FATAL ERROR] Too many identifiers defined. please increase the max identifier count. \"-idc <count>\"");
+                                return -1;
+                            }
+                            token.type = TOKEN_TYPE_IDENTIFIER;
+                            identifiers[x].id = x;
+                            identifiers[x].name = malloc((i + 1) * sizeof(char));
+                            strncpy(identifiers[x].name, code_buffer, i);
+                            identifiers[x].name[i] = '\0';
+                            compiler.flags[0] = 2; // Expect assignment or end of statement
+                            break;
+                        }
+                    }
                     // Go trough every function name and look for the string
                     for(int x = 0;x < MAX_FUNCTIONS;x++) {
                         if(strncmp(code_buffer, functions[x].name, i) == 0) {
