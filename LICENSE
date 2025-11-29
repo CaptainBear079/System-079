@@ -1,48 +1,39 @@
-# Creators Project License
-Copyright (c) 2025 Captain Bear (CaptainBear079 on Github)
-Copies of this document may be made, but modifying the document is strictly prohibited.
+# System-079 Project License (SPL)
+Copyright (c) 2025 Captain Bear (CaptainBear079 on GitHub)
 
-The Creators Project license is a free license for software to ensure that the developers of the software are not forgotten and that the software is not used for illegal things.
+This license applies ONLY to the contents of the `System-079` repository and to any
+files distributed together with it by the repository owner(s). This is a project‑specific
+license created for `System-079` and does not grant permissions beyond this project.
 
-## Definition of Free Software
-In this document, when we talk about Free Software, we mean software that can be copied and shared freely under the conditions below, it is not talking about free software.
+1. Source availability and attribution
+- When you distribute this software (original or modified), you must make the complete
+	corresponding source code available under the same terms.
+- You must retain the existing author credits and add a clear notice file of
+	what you changed in the modified files, including the name of contributors.
 
-Developers that use our Creators Project License protect your rights with two steps: (1) assert copyright on the software, and (2) offer you this License which gives you legal permission to copy, distribute and/or modify the software.
+2. Redistribution and use
+- You may copy, distribute and modify the software for non-commercial purposes without
+	prior permission, provided you comply with Section 1 (source availability and attribution).
+- Commercial use, sale, or sublicensing of the software (or works based on it) requires
+	prior written permission from the copyright holders (contact: `https://github.com/CaptainBear079`).
 
-# Terms and Conditions
-## 1.Source Code
-The source code must always be available when the software is distributed. The source code must be provided in a format that allows other developers to modify and improve the software.
-When distributing a modified version of the software, the modified source code must also be provided.
+3. Prohibited uses
+- You may not use this software to engage in illegal activity, to create malware, or to
+	materially harm people, property, or privacy. If such prohibited use is discovered, the
+	license may be revoked for the offending parties.
 
-## 2.Copies
-The software may be copied and distributed, but no money may be charged for the software, the original developer(s) must always be named.
+4. No endorsement / Respect
+- You must not imply endorsement by the original authors when distributing modified versions.
 
-## 3.Changes
-The software may be modified, but the original developer(s) must also be named and the software must not be sold for money.
+5. Disclaimer of warranty and liability
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Changes must be documented. The documentation of the changes must be included.
+6. License file
+- This `LICENSE` file must be included with all copies or substantial portions of the
+	software. Do not remove or alter this license file when redistributing the project.
 
-The software may not be used to steal information or harm other people. Also, objects must not be damaged by the software.
-
-## 4.Developers
-The developers of the software are not responsible for any damage caused by the software. Also are the developers responsible for any damage caused by unmodified versions of the software.
-The developers are also not responsible for any damage caused by modified versions of the software.
-
-All rights to the software belong to the developers of the software.
-
-All developers who worked on the software are named in the list of developers(credits).
-
-## 5.Generating Money
-Before making any money with this software you have to ask the developers for permission.
-
-## 6.Respect
-You respect the developers of the software. Disrespecting the developers will cause you to lose the rights provided by this license.
-
-## 7.Miscellaneous
-The software must not be used for illegal things.
-
-Via Youtube, Twitch, Discord and Co., no money may be earned with incomplete tutorials or "life hack" videos.
-
-Pornographic content must always be accompanied by a warning. No warranty at all by any developers.
-
-For further questions, contact the developers of the software (e.g. via Github, Youtube, Discord, ...).
+If you want a different license for other uses (for example a permissive or a
+commercial license), contact the copyright holders at `https://github.com/CaptainBear079`.
