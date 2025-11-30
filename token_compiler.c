@@ -20,6 +20,7 @@ typedef struct _IDENTIFIER_ {
 
 typedef struct _COMPILER_ {
     int flags[1];
+    Token** tokens;
     FUNCTION** functions;
     IDENTIFIER** identifiers;
 } COMPILER;
@@ -64,6 +65,13 @@ int MAX_FUNCTIONS = 250;
 int MAX_IDENTIFIERS = 450;
 
 int main(int argc, char* argv[]) {
+    if(argc < 4) {
+        printf("[ERROR] Not enough arguments.\n");
+        return -1;
+    }
+    Token* tokens = malloc(1024 * sizeof(Token));
+    char* code_buffer = malloc(257 * sizeof(char));
+    code_buffer[256] = '\0';
     MAX_FUNCTIONS = atoi(argv[2]);
     FUNCTION* functions = malloc(MAX_FUNCTIONS * sizeof(FUNCTION));
     MAX_IDENTIFIERS = atoi(argv[3]);
@@ -72,9 +80,6 @@ int main(int argc, char* argv[]) {
     bool done = false;
     FILE* fptr = fopen(argv[1], "r");
     char c = '\0';
-    Token* tokens = malloc(1024 * sizeof(Token));
-    char* code_buffer = malloc(257 * sizeof(char));
-    code_buffer[256] = '\0';
     while(!done) {
         // Read token
         for(int i = 0;i < 256;i++) {
@@ -119,14 +124,14 @@ int main(int argc, char* argv[]) {
                                 printf("[FATAL ERROR] Too many identifiers defined. please increase the max identifier count. \"-idc <count>\"");
                                 return -1;
                             }
-                            token.type = TOKEN_TYPE_IDENTIFIER;
-                            identifiers[x].id = x;
-                            identifiers[x].name = malloc((i + 1) * sizeof(char));
-                            strncpy(identifiers[x].name, code_buffer, i);
-                            identifiers[x].name[i] = '\0';
+                            compiler.tokens[0][current_token_index].type = TOKEN_TYPE_IDENTIFIER;
+                            compiler.identifiers[0][x].id = x;
+                            compiler.identifiers[0][x].name = malloc(i * sizeof(char));
+                            strncpy(compiler.identifiers[0][x].name, code_buffer, (i - 1));
+                            compiler.identifiers[0][x].name[i] = '\0';
                             compiler.flags[0] = 2; // Expect assignment or end of statement
-                            break;
-                        }
+                        } break;
+                        case 2: {}
                     }
                     // Go trough every function name and look for the string
                     for(int x = 0;x < MAX_FUNCTIONS;x++) {
