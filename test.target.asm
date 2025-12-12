@@ -1,11 +1,11 @@
 section .data
 section .text
 global _start
-extern main
 _start:
     call main
-    mov rax, 60
     xor rdi, rdi
+    mov rdi, rax
+    mov rax, 60
     syscall
 
 main:                              ; int main()

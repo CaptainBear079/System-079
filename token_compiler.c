@@ -21,9 +21,21 @@ typedef struct _IDENTIFIER_ {
 	unsigned long long id;
 } IDENTIFIER;
 
+typedef struct _CODE_OBJECT_ {
+	// Represents a line of code
+	// Supported:
+	//  - variable declaration
+	//  - function declaration
+	int type; // See CODE_OBJECT_TYPE enum
+	union {
+		char* identifier; // Identifier of variables or functions
+	} CODE_OBJECT_DATA;
+} CODE_OBJECT;
+
 typedef struct _COMPILER_ {
 	int flags[3]; // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
-	bool bflags[1];
+	bool bflags[2]; // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate
+	bool bflagsArgs[1]; // 0 = Assemble Flag
 	int column, line;
 	int token_start; // Column
 	int current_identifier;
@@ -33,11 +45,11 @@ typedef struct _COMPILER_ {
 	int MAX_FUNCTIONS; // Max functions: default 250
 	int MAX_IDENTIFIERS; // Max identifiers: default 450
 	int MAX_ERRORS; // Max errors before terminating compiler: default 500
-	int* ERRORS;
 	Token* tokens;
 	FUNCTION* functions;
 	IDENTIFIER* identifiers;
 	char* code_buffer;
+	CODE_OBJECT* pre_compiled_code; // Pre-compiled code (Next translation and optimization)
 } COMPILER;
 
 enum TOKEN_TYPE {
@@ -84,7 +96,7 @@ enum TOKEN_TYPE {
 
 #define C compiler
 
-int checkToken(char** code_buffer, int* i, COMPILER* compiler, int* c) {
+/*int checkToken(char** code_buffer, int* i, COMPILER* compiler, int* c) {
 	printf("New token: %s, line: %d, column: %d\n", *code_buffer, compiler->line, (compiler->column - (compiler->column - compiler->token_start)));
 	// Check token
 	if(strcmp(*code_buffer, "int") == 0) {
@@ -154,34 +166,77 @@ int checkToken(char** code_buffer, int* i, COMPILER* compiler, int* c) {
 	}
 	compiler->token_start = compiler->column;
 	return 0;
-}
+}*/
 
 int ParseCode(COMPILER* compiler) {
-	// Split into sections ("section script", "section source")
-	compiler->flags[2] = 0; // Current section: 0 = source, 1 = script
+	// Variables
+	CODE_OBJECT temp_code_object;
+
+	// Split into sections ("__SEC_SCRIPT", "__SEC_SOURCE")
+	C->flags[2] = 0; // Current section: 0 = source, 1 = script
 	for(int i = 0;i < C->current_token_index;i++) {
+		// Check if change to script section is made
+		if(strcmp(C->tokens[i].str, "__SEC_SCRIPT") == 0) {
+			C->flags[2] = 1; // Set section to script
+			continue;
+		}
+		else if(strcmp(C->tokens[i].str, "__SEC_SOURCE") == 0) {
+			C->flags[2] = 0; // Section didn't change
+			continue;
+		}
 		// Inside or outside function
-		if(C->bflags[0]) {
+		else if(C->bflags[0]) {
 			// Currently parsing inside a function
 			if(strcmp(C->tokens[i].str, "int") == 0) {
 				// Integer variable
 			}
 		}
+		else {
+			// Currently parsing outside a function
+			if(strcmp(C->tokens[i].str, "int") == 0) {
+				// Global integer variable or function declaration
+				i++;
+				if(!(i < C->current_token_index)) {
+					// Error
+					C->bflags[1] = false;
+					C->current_error++;
+					// Print error
+					printf("[ERROR] Definition incomplete. End of file.\n");
+					return -1;
+				}
+				
+				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
+					// Save the name of the variable/function in temp_code_object
+					temp_code_object.CODE_OBJECT_DATA.identifier = C->tokens[i].str;
+				}
+
+				i++;
+				if(!(i < C->current_token_index)) {
+					// Error
+					C->bflags[1] = false;
+					C->current_error++;
+					// Print errore
+				}
+			}
+		}
 	}
+}
+
+int Assemble(COMPILER* compiler) {
+	// Call assembler
 }
 
 int main(int argc, char* argv[]) {
 	if(argc < 5) {
-		printf("[ERROR] Not enough arguments.\n<file> <max functions> <max identifiers> <max errors before terminating> <max tokens>\n");
+		printf("[ERROR] Not enough arguments.\n<file> <max functions> <max identifiers> <max errors before terminating> <max tokens> <assemble>\n");
 		return -1;
 	}
 	
-	COMPILER compiler = { { 0, 0 }, { false }, 1, 1, 1, 0, 0, 0, 1024, 250, 450, 500, NULL, NULL, NULL, NULL, NULL };
+	COMPILER compiler = { { 0, 0 }, { false, false }, 1, 1, 1, 0, 0, 0, 1024, 250, 450, 500, NULL, NULL, NULL, NULL, NULL };
 	C.MAX_TOKENS = atoi(argv[5]);
 	C.MAX_FUNCTIONS = atoi(argv[2]);
 	C.MAX_IDENTIFIERS = atoi(argv[3]);
 	C.MAX_ERRORS = atoi(argv[4]);
-	C.ERRORS = malloc(C.MAX_ERRORS * sizeof(int));
 	C.tokens = malloc(C.MAX_TOKENS * sizeof(Token));
 	C.functions = malloc(C.MAX_FUNCTIONS * sizeof(FUNCTION));
 	C.identifiers = malloc(C.MAX_IDENTIFIERS * sizeof(IDENTIFIER));
@@ -253,6 +308,15 @@ int main(int argc, char* argv[]) {
 
 		// Parse code
 		ParseCode(&C);
+
+		// Translate
+		Translate(&C);
+
+		
+		if(C.bflagsArgs[0]) {
+			// Assemble
+			Assemble(&C);
+		}
 	}
 	return 0;
 }
