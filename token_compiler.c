@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef struct _Token_ {
 	char* str;
@@ -21,6 +22,11 @@ typedef struct _IDENTIFIER_ {
 	unsigned long long id;
 } IDENTIFIER;
 
+typedef struct _ARG_LIST_ {
+	int type;
+	char* name;
+} ARG_LIST;
+
 typedef struct _CODE_OBJECT_ {
 	// Represents a line of code
 	// Supported:
@@ -33,65 +39,81 @@ typedef struct _CODE_OBJECT_ {
 } CODE_OBJECT;
 
 typedef struct _COMPILER_ {
+	// Flags
 	int flags[3]; // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
 	bool bflags[2]; // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate
 	bool bflagsArgs[1]; // 0 = Assemble Flag
+
+	// Position meta data
 	int column, line;
+
+	// Meta data
 	int token_start; // Column
 	int current_identifier;
 	int current_token_index;
 	int current_error;
+
+	// Assembler meta data
+	int assembler_length; // Default: 4;
+	char* ASSEMBLER; // Default: "nasm"
+	int current_assembler_flag;
+	int* assembler_flags_length;
+	char** assembler_flags;
+	int temp_assembly_file_length; // Default: 14
+	char* temp_assembly_file; // Default: "./temp_asm.asm"
+
+	// Limits
 	int MAX_TOKENS; // Max tokens: default 1024
 	int MAX_FUNCTIONS; // Max functions: default 250
 	int MAX_IDENTIFIERS; // Max identifiers: default 450
 	int MAX_ERRORS; // Max errors before terminating compiler: default 500
+
+	// Compilation data
 	Token* tokens;
 	FUNCTION* functions;
 	IDENTIFIER* identifiers;
+	int* list_of_types;
 	char* code_buffer;
 	CODE_OBJECT* pre_compiled_code; // Pre-compiled code (Next translation and optimization)
 } COMPILER;
 
-enum TOKEN_TYPE {
-	TOKEN_TYPE_BOOL,              // 1 Bit
-	TOKEN_TYPE_CHAR,              // 1 Byte number or character
-	TOKEN_TYPE_UCHAR,             // Unsigned 1 byte numbers only
-	TOKEN_TYPE_SHORT,             // 2 byte number
-	TOKEN_TYPE_USHORT,            // Unsigned 2 byte number
-	TOKEN_TYPE_INT,               // 4 byte number
-	TOKEN_TYPE_UINT,              // Unsigned 4 byte number
-	TOKEN_TYPE_LONG,              // 6 byte number
-	TOKEN_TYPE_ULONG,             // Unsigned 6 byte number
-	TOKEN_TYPE_LONGLONG,          // 8 byte number
-	TOKEN_TYPE_ULONGLONG,         // Unsigned 8 byte number
-	TOKEN_TYPE_FLOAT,             // 4 byte floating point number
-	TOKEN_TYPE_UFLOAT,            // Unsigned 4 byte floating point number
-	TOKEN_TYPE_DOUBLE,            // 8 byte floating point number
-	TOKEN_TYPE_UDOUBLE,           // Unsigned 8 byte floating point number
-	TOKEN_TYPE_LONGDOUBLE,        // 16 byte floating point number
-	TOKEN_TYPE_ULONGDOUBLE,       // Unsigned 16 byte floating point number
-	TOKEN_TYPE_POINTER,           // Pointer 4/8 byte depending on cpu bit mode
-	TOKEN_TYPE_STRUCT,            // Structure (Pointer)
-	TOKEN_TYPE_UNION,             // Union (Pointer) size = max member size
-	TOKEN_TYPE_ENUM,              // Enum (4 byte number) named integer constants
-	TOKEN_TYPE_NOT,               // Not/invertation operator
-	TOKEN_TYPE_EQUALS,            // Equals operator '=='
-	TOKEN_TYPE_NOT_EQUALS,        // Not equals operator '!='
-	TOKEN_TYPE_LESS_THAN,         // Less than operator '<'
-	TOKEN_TYPE_GREATER_THAN,      // Greater than operator '>'
-	TOKEN_TYPE_LESS_EQUAL,        // Less than or equal operator '<='
-	TOKEN_TYPE_GREATER_EQUAL,     // Greater than or equal operator '>='
-	TOKEN_TYPE_SET,               // Assignment operator '='
-	TOKEN_TYPE_IDENTIFIER_REF,    // Reference to a identifier
-	TOKEN_TYPE_FUNCTION_REF,      // Reference to a function
-	TOKEN_TYPE_NUMBER,            // Number
-	TOKEN_TYPE_IDENTIFIER,        // Identifier
-	TOKEN_TYPE_CALCULATION_START, // Calculation start
-	TOKEN_TYPE_CALCULATION_END,   // Calculation end
-	TOKEN_TYPE_ARG_LIST_START,    // Argument list start
-	TOKEN_TYPE_ARG_LIST_END,      // Argument list end
-	TOKEN_TYPE_CODE_BLOCK_START,  // Code block start
-	TOKEN_TYPE_CODE_BLOCK_END     // Code block end
+enum CODE_OBJECT_TYPE {
+	CODE_OBJECT_TYPE_BOOL,              // 1 Bit
+	CODE_OBJECT_TYPE_CHAR,              // 1 Byte number or character
+	CODE_OBJECT_TYPE_UCHAR,             // Unsigned 1 byte numbers only
+	CODE_OBJECT_TYPE_SHORT,             // 2 byte number
+	CODE_OBJECT_TYPE_USHORT,            // Unsigned 2 byte number
+	CODE_OBJECT_TYPE_INT,               // 4 byte number
+	CODE_OBJECT_TYPE_UINT,              // Unsigned 4 byte number
+	CODE_OBJECT_TYPE_LONG,              // 6 byte number
+	CODE_OBJECT_TYPE_ULONG,             // Unsigned 6 byte number
+	CODE_OBJECT_TYPE_LONGLONG,          // 8 byte number
+	CODE_OBJECT_TYPE_ULONGLONG,         // Unsigned 8 byte number
+	CODE_OBJECT_TYPE_FLOAT,             // 4 byte floating point number
+	CODE_OBJECT_TYPE_UFLOAT,            // Unsigned 4 byte floating point number
+	CODE_OBJECT_TYPE_DOUBLE,            // 8 byte floating point number
+	CODE_OBJECT_TYPE_UDOUBLE,           // Unsigned 8 byte floating point number
+	CODE_OBJECT_TYPE_LONGDOUBLE,        // 16 byte floating point number
+	CODE_OBJECT_TYPE_ULONGDOUBLE,       // Unsigned 16 byte floating point number
+	CODE_OBJECT_TYPE_POINTER,           // Pointer 4/8 byte depending on cpu bit mode
+	CODE_OBJECT_TYPE_STRUCT,            // Structure (Pointer)
+	CODE_OBJECT_TYPE_UNION,             // Union (Pointer) size = max member size
+	CODE_OBJECT_TYPE_ENUM,              // Enum (4 byte number) named integer constants
+	CODE_OBJECT_TYPE_NOT,               // Not/invertation operator
+	CODE_OBJECT_TYPE_EQUALS,            // Equals operator '=='
+	CODE_OBJECT_TYPE_NOT_EQUALS,        // Not equals operator '!='
+	CODE_OBJECT_TYPE_LESS_THAN,         // Less than operator '<'
+	CODE_OBJECT_TYPE_GREATER_THAN,      // Greater than operator '>'
+	CODE_OBJECT_TYPE_LESS_EQUAL,        // Less than or equal operator '<='
+	CODE_OBJECT_TYPE_GREATER_EQUAL,     // Greater than or equal operator '>='
+	CODE_OBJECT_TYPE_SET,               // Assignment operator '='
+	CODE_OBJECT_TYPE_IDENTIFIER_REF,    // Reference to a identifier
+	CODE_OBJECT_TYPE_FUNCTION_REF,      // Reference to a function
+	CODE_OBJECT_TYPE_NUMBER,            // Number
+	CODE_OBJECT_TYPE_IDENTIFIER,        // Identifier
+	CODE_OBJECT_TYPE_CALCULATION,       // Calculation
+	CODE_OBJECT_TYPE_ARG_LIST,          // Argument list 
+	CODE_OBJECT_TYPE_CODE_BLOCK,        // Code block
 };
 
 #define C compiler
@@ -212,27 +234,65 @@ int ParseCode(COMPILER* compiler) {
 
 				i++;
 				if(!(i < C->current_token_index)) {
-					// Error
-					C->bflags[1] = false;
-					C->current_error++;
-					// Print errore
+					break;
+				}
+				if(C->tokens[i].str[0] == '=') {}
+				else if(C->tokens[i].str[0] == '(') {
+					// Read argument list
 				}
 			}
 		}
 	}
 }
 
+int Translate(COMPILER* compiler) {
+	switch(C->pre_compiled_code->type) {
+		case CODE_OBJECT_TYPE_INT: {
+			// IDK.
+		} break;
+		default: {
+			printf("[ERROR] Kinks.\n");
+		} break;
+	}
+}
+
 int Assemble(COMPILER* compiler) {
+	// Build assembler call
+	// Calculate length
+	int length = C->assembler_length;
+	for(int i = 0;i < C->current_assembler_flag;i++) {
+		length = length + C->assembler_flags_length[i];
+	}
+	length = length + C->temp_assembly_file_length;
+
+	// Allocate call buffer
+	char* assembler_call = malloc(length * sizeof(char));
+	char* temp = assembler_call;
+	if(temp == NULL || assembler_call == NULL) {
+		return 1;
+	}
+
+	// Write call
+	strncpy(temp, C->ASSEMBLER, C->assembler_length);
+	temp = temp + C->assembler_length;
+	for(int i = 0;i < C->current_assembler_flag;i++) {
+		strncpy(temp, C->assembler_flags[i], C->assembler_flags_length[i]);
+		temp = temp + C->assembler_flags_length[i];
+	}
+	strncpy(temp, C->temp_assembly_file, C->temp_assembly_file_length);
+
 	// Call assembler
+	system(assembler_call);
+	return 0;
 }
 
 int main(int argc, char* argv[]) {
-	if(argc < 5) {
+	if(argc < 6) {
 		printf("[ERROR] Not enough arguments.\n<file> <max functions> <max identifiers> <max errors before terminating> <max tokens> <assemble>\n");
 		return -1;
 	}
 	
-	COMPILER compiler = { { 0, 0 }, { false, false }, 1, 1, 1, 0, 0, 0, 1024, 250, 450, 500, NULL, NULL, NULL, NULL, NULL };
+	COMPILER compiler = { { 0, 0, 0 }, { false, false }, { false }, 1, 1, 1, 0, 0, 0, 4, "nasm", 1, NULL, NULL, 14, "./temp_asm.asm", 1024, 250, 450, 500, NULL, NULL, NULL, NULL, NULL, NULL };
 	C.MAX_TOKENS = atoi(argv[5]);
 	C.MAX_FUNCTIONS = atoi(argv[2]);
 	C.MAX_IDENTIFIERS = atoi(argv[3]);
@@ -289,16 +349,32 @@ int main(int argc, char* argv[]) {
 					i = -1;
 				}
 			}
-			else if(c == (int)'(') {
-				C.code_buffer[i] = c;
-				C.column++;
-				C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-				strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
-				C.tokens[C.current_token_index].str[i] = '\0';
-				for(int j = 0;j <= i;j++) {
+			else if(c == (int)'(' || c == (int)')' || c == (int)'{' || c == (int)'}') {
+				if(c == (int)'(') {
+					C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
+					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
+					C.tokens[C.current_token_index].str[i - 1] = '\0';
+					for(int j = 0;j < i;j++) {
+						C.code_buffer[j] = '\0';
+					}
+					C.code_buffer[0] = c;
+					C.column++;
+					i = 0;
+				}
+				else if(c == (int)')') {
+					C.code_buffer[i] = c;
+					C.column++;
+					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
+					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
+					C.tokens[C.current_token_index].str[i] = '\0';
+					for(int j = 0;j < i;j++) {
 						C.code_buffer[j] = '\0';
 					}
 					i = -1;
+				}
+			}
+			else if(c == (int)'/') {
+				C.code_buffer[i] = c;
 			}
 			else {
 				printf("[FATAL ERROR] Unsupported character, at %d:%d.", C.line, C.column);
