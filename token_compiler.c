@@ -372,6 +372,23 @@ int main(int argc, char* argv[]) {
 					}
 					i = -1;
 				}
+				else {
+					C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
+					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
+					C.tokens[C.current_token_index].str[i - 1] = '\0';
+					for(int j = 0;j < i;j++) {
+						C.code_buffer[j] = '\0';
+					}
+					C.code_buffer[i] = c;
+					C.column++;
+					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
+					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
+					C.tokens[C.current_token_index].str[i] = '\0';
+					for(int j = 0;j < i;j++) {
+						C.code_buffer[j] = '\0';
+					}
+					i = -1;
+				}
 			}
 			else if(c == (int)'/') {
 				C.code_buffer[i] = c;
