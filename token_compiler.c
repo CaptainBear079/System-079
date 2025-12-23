@@ -6,8 +6,6 @@
 
 typedef struct _Token_ {
 	char* str;
-	int type;
-	int value;
 	int line;
 	int column;
 } Token;
@@ -40,27 +38,27 @@ typedef struct _CODE_OBJECT_ {
 
 typedef struct _COMPILER_ {
 	// Flags
-	int flags[3]; // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
-	bool bflags[2]; // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate
-	bool bflagsArgs[1]; // 0 = Assemble Flag
-
-	// Position meta data
-	int column, line;
+	int flags[3];                  // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
+	bool bflags[2];                // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate
+	bool bflagsArgs[1];            // 0 = Assemble Flag
 
 	// Meta data
-	int token_start; // Column
-	int current_identifier;
-	int current_token_index;
-	int current_error;
+	int column, line;              // Position
+	FILE* fptr;                    // File
+
+	// Changing data
+	int token_start;               // Start column of the currently read token
+	int current_identifier;        // The next free identifier entry
+	int current_token_index;       // The next free token entry
 
 	// Assembler meta data
-	int assembler_length; // Default: 4;
-	char* ASSEMBLER; // Default: "nasm"
+	int assembler_length;          // Default: 4;
+	char* ASSEMBLER;               // Default: "nasm"
 	int current_assembler_flag;
 	int* assembler_flags_length;
 	char** assembler_flags;
 	int temp_assembly_file_length; // Default: 14
-	char* temp_assembly_file; // Default: "./temp_asm.asm"
+	char* temp_assembly_file;      // Default: "./temp_asm.asm"
 
 	// Limits
 	int MAX_TOKENS; // Max tokens: default 1024
@@ -117,78 +115,73 @@ enum CODE_OBJECT_TYPE {
 };
 
 #define C compiler
+#define fileName argv[1]
 
-/*int checkToken(char** code_buffer, int* i, COMPILER* compiler, int* c) {
-	printf("New token: %s, line: %d, column: %d\n", *code_buffer, compiler->line, (compiler->column - (compiler->column - compiler->token_start)));
-	// Check token
-	if(strcmp(*code_buffer, "int") == 0) {
-		compiler->tokens[compiler->current_token_index].type = TOKEN_TYPE_INT;
-		compiler->current_token_index++;
-		compiler->flags[0] = 1; // Expect new variable identifier
+int PreProcessor(COMPILER* compiler) {
+	// Pre-processor directives:
+	// - include:
+	//   Includes code from other files.
+	//   Written: #include <file.h/file.soft/file.source/file.script>
+	// - define:
+	//   Defines the meaning for a token.
+	//   Written: #define identifier value
+	// - if:
+	//   If but for preprocessor macros.
+	//   Written: #if condition
+	// - elif:
+	//   Continuation of #if.
+	//   Written: #elif condition
+	// - else:
+	//   Written: #else
+	// - endif:
+	//   Ends #if and #elif.
+	//   Written: #endif
+	// - INFO:
+	//   Metadata for the executable.
+	//   - TITLE:
+	//     Sets the title of the window. (MOSTLY WINDOWS GUI)
+	//   - USER:
+	//     Sets which user/user type is needed to run the program.
+	//     Options: "Root/Admin", "Any", "ProgramUser"
+	//   - MAIN:
+	//     Sets the entry point.
+	//   - RANDOM:
+	//     Sets if extended randomization algorithms are used.
+	//     Options: true, false
+	//   - DEFINES_REQ:
+	//     Sets which defines are needed to compile the program.
+
+	// Create/Reopen a temporary file for the pre-processed code
+	FILE* preProcessedFile = fopen("./temp_preprocessed.pre", "w+");
+	if(preProcessedFile == NULL) {
+		printf("[ERROR] Could not create temporary pre-processed file.\n");
+		return -1;
 	}
-	else if(strcmp(*code_buffer, "=") == 0) {
-		if(compiler->flags[0] == 2) {
-			compiler->tokens[compiler->current_token_index].type = TOKEN_TYPE_SET;
-			compiler->current_token_index++;
-			compiler->flags[0] = 3; // Expect value
-		}
-	}
-	else if(strcmp(*code_buffer, "!") == 0) {
-		compiler->tokens[compiler->current_token_index].type = TOKEN_TYPE_NOT;
-		compiler->current_token_index++;
-		compiler->flags[0] = 4;
-	}
-	else {
-		int x = 0;
-		// Go trough every function name and look for the string
-		if(compiler->flags[1] != 0) {
-			while(x < C->MAX_FUNCTIONS) {
-				if(strncmp(*code_buffer, compiler->functions[x].name, *i) == 0) {
-					if(compiler->flags[0] == 1) {
-						C->ERRORS[compiler->current_error] = 1; // Can't name a variable after a function Code: R1
-					}
+
+	// Find a pre-processor directive
+	int c = fgetc(C->fptr);
+	while(c != EOF) {
+		if(c == (int)'#') {
+			// Read directive
+			char directive_buffer[32] = { 0 };
+			c = fgetc(C->fptr);
+			switch(c) {
+				case (int)'i': {
+					//
 				}
-				x++;
-			}
-			x = 0;
-		}
-		if(!(compiler->current_identifier <= 0)) {
-			// Go trough every identifier and look for the string
-			while(x < C->MAX_IDENTIFIERS) {
-				if(strncmp(*code_buffer, compiler->identifiers[x].name, *i) == 0) {
-					C->ERRORS[compiler->current_error] = 2; // Identifier already defined Code: R2
-				}
-				x++;
 			}
 		}
-		// New identifier
-		if(x >= C->MAX_IDENTIFIERS) {
-			printf("[FATAL ERROR] Too many identifiers defined. Please increase the max identifier count. \"-idc <count>\"");
-			return -1;
+		else {
+			// Write character to pre-processed file
+			fputc(c, preProcessedFile);
 		}
-		compiler->tokens[compiler->current_token_index].type = TOKEN_TYPE_IDENTIFIER;
-		compiler->identifiers[compiler->current_identifier].id = compiler->current_identifier;
-		compiler->identifiers[compiler->current_identifier].name = malloc((*i + 1) * sizeof(char));
-		strncpy(compiler->identifiers[compiler->current_identifier].name, *code_buffer, *i);
-		compiler->identifiers[compiler->current_identifier].name[*i] = '\0';
-		compiler->current_token_index++;
-		compiler->flags[0] = 2; // Expect assignment or end of statement
+		c = fgetc(C->fptr);
 	}
-	compiler->tokens[compiler->current_token_index].column = compiler->token_start;
-	compiler->tokens[compiler->current_token_index].line = compiler->line;
-	if(*c == (int)' ') {
-		compiler->column++;
-	}
-	else if(*c == (int)'\n') {
-		compiler->column = 0;
-		compiler->line++;
-	}
-	else if(*c == (int)'\t') {
-		compiler->column += 4;
-	}
-	compiler->token_start = compiler->column;
+	fclose(C->fptr);
+	C->fptr = preProcessedFile;
+	rewind(C->fptr);
 	return 0;
-}*/
+}
 
 int ParseCode(COMPILER* compiler) {
 	// Variables
@@ -221,7 +214,6 @@ int ParseCode(COMPILER* compiler) {
 				if(!(i < C->current_token_index)) {
 					// Error
 					C->bflags[1] = false;
-					C->current_error++;
 					// Print error
 					printf("[ERROR] Definition incomplete. End of file.\n");
 					return -1;
@@ -287,12 +279,21 @@ int Assemble(COMPILER* compiler) {
 }
 
 int main(int argc, char* argv[]) {
+	// DEBUG: Argument chack
 	if(argc < 6) {
 		printf("[ERROR] Not enough arguments.\n<file> <max functions> <max identifiers> <max errors before terminating> <max tokens> <assemble>\n");
 		return -1;
 	}
-	
-	COMPILER compiler = { { 0, 0, 0 }, { false, false }, { false }, 1, 1, 1, 0, 0, 0, 4, "nasm", 1, NULL, NULL, 14, "./temp_asm.asm", 1024, 250, 450, 500, NULL, NULL, NULL, NULL, NULL, NULL };
+
+	// Initalize compiler object
+	COMPILER compiler = {
+		/* Flags */ { 0, 0, 0 }, { false, false }, { false },
+		/* Meta data */ 1, 1, fopen(fileName, "r"),
+		/* Changing data */ 1, 0, 0,
+		/* Assembler meta data*/ 4, "nasm", 1, NULL, NULL, 14, "./temp_asm.asm",
+		/* Limits */ 1024, 250, 450, 500,
+		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL
+	};
 	C.MAX_TOKENS = atoi(argv[5]);
 	C.MAX_FUNCTIONS = atoi(argv[2]);
 	C.MAX_IDENTIFIERS = atoi(argv[3]);
@@ -302,101 +303,155 @@ int main(int argc, char* argv[]) {
 	C.identifiers = malloc(C.MAX_IDENTIFIERS * sizeof(IDENTIFIER));
 	C.code_buffer = malloc(256 * sizeof(char));
 	C.code_buffer[256] = '\0';
-	bool done = false;
-	FILE* fptr = fopen(argv[1], "r");
-	int c = '\0';
+	bool done = false;                // While flag
+	int c = '\0';                     // Character holder
+
+	// Compiling chain
 	while(!done) {
+		// Pre-processor
+		PreProcessor(&C);
+
 		// Process into token
-		c = fgetc(fptr);
+		// 1.Get the first character from fptr
+		c = fgetc(C.fptr);
+		// 2.Read trough file
 		for(int i = 0;i <= 255;i++) {
+			// Is End Of File reached
 			if(c == EOF) {
+				// Set while flag
 				done = true;
+				// Save last token
 				if(C.code_buffer[0] != '\0') {
 					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
 					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
 					C.tokens[C.current_token_index].str[i] = '\0';
+					C.tokens[C.current_token_index].column = C.token_start;
+					C.tokens[C.current_token_index].line = C.line;
+					C.token_start = C.column;
+					C.current_token_index++;
 					for(int j = 0;j <= i;j++) {
 						C.code_buffer[j] = '\0';
 					}
 					i = -1;
 				}
+				// Leave for-loop
 				break;
 			}
 			else if(i >= 255) {
+				// Max token size reached
+				// Save token
 				if(C.code_buffer[0] != '\0') {
 					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
 					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
 					C.tokens[C.current_token_index].str[i] = '\0';
+					C.tokens[C.current_token_index].column = C.token_start;
+					C.tokens[C.current_token_index].line = C.line;
+					C.token_start = C.column;
+					C.current_token_index++;
 					for(int j = 0;j <= i;j++) {
-						C.code_buffer[j] = '\0';
-					}
-					i = -1;
-				}
-			}
-			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' || c == (int)'_' || c >= (int)'0' && c <= (int)'9' || c == (int)'=') {
-				C.code_buffer[i] = c;
-				C.column++;
-				
-			}
-			else if(c == (int)' ' || c == (int)';' || c == (int)'\n' || c == (int)'\t') {
-				if(C.code_buffer[0] != '\0') {
-					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i] = '\0';
-					for(int j = 0;j <= i;j++) {
-						C.code_buffer[j] = '\0';
-					}
-					i = -1;
-				}
-			}
-			else if(c == (int)'(' || c == (int)')' || c == (int)'{' || c == (int)'}') {
-				if(c == (int)'(') {
-					C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i - 1] = '\0';
-					for(int j = 0;j < i;j++) {
-						C.code_buffer[j] = '\0';
-					}
-					C.code_buffer[0] = c;
-					C.column++;
-					i = 0;
-				}
-				else if(c == (int)')') {
-					C.code_buffer[i] = c;
-					C.column++;
-					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
-					C.tokens[C.current_token_index].str[i] = '\0';
-					for(int j = 0;j < i;j++) {
 						C.code_buffer[j] = '\0';
 					}
 					i = -1;
 				}
 				else {
-					C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i - 1] = '\0';
-					for(int j = 0;j < i;j++) {
-						C.code_buffer[j] = '\0';
-					}
-					C.code_buffer[i] = c;
-					C.column++;
+					// FATAL ERROR
+					printf("FATAL ERROR. PROGRAM TERMINATED.");
+					return -1;
+				}
+			}
+			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' || c == (int)'_' || c >= (int)'0' && c <= (int)'9' || c == (int)'=') {
+				// Save character
+				C.code_buffer[i] = c;
+				C.column++;
+				
+			}
+			else if(c == (int)' ' || c == (int)';' || c == (int)'\n' || c == (int)'\t') {
+				// Token ending character
+				// Save token
+				if(C.code_buffer[0] != '\0') {
 					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
+					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
 					C.tokens[C.current_token_index].str[i] = '\0';
-					for(int j = 0;j < i;j++) {
+					C.tokens[C.current_token_index].column = C.token_start;
+					C.tokens[C.current_token_index].line = C.line;
+					C.token_start = C.column;
+					C.current_token_index++;
+					for(int j = 0;j <= i;j++) {
 						C.code_buffer[j] = '\0';
 					}
 					i = -1;
 				}
 			}
-			else if(c == (int)'/') {
-				C.code_buffer[i] = c;
-			}
 			else {
+				// Other characters (Argument list, calculations, access, ...)
+				switch(c) {
+					// Calculation Opening/Caller Arg List Opening
+					case (int)'(': {
+						C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
+						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
+						C.tokens[C.current_token_index].str[i - 1] = '\0';
+						C.tokens[C.current_token_index].column = C.token_start;
+						C.tokens[C.current_token_index].line = C.line;
+						C.token_start = C.column;
+						C.current_token_index++;
+						for(int j = 0;j < i;j++) {
+							C.code_buffer[j] = '\0';
+						}
+						C.code_buffer[0] = c;
+						C.column++;
+						i = 0;
+					} break;
+					// Calculation Closing/ Caller Arg List Closing
+					case (int)')': {
+						C.code_buffer[i] = c;
+						C.column++;
+						i++;
+						C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
+						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
+						C.tokens[C.current_token_index].str[i] = '\0';
+						C.tokens[C.current_token_index].column = C.token_start;
+						C.tokens[C.current_token_index].line = C.line;
+						C.token_start = C.column;
+						C.current_token_index++;
+						for(int j = 0;j < i;j++) {
+							C.code_buffer[j] = '\0';
+						}
+						i = -1;
+					} break;
+					// Code Object/Object
+					case (int)'{':
+					case (int)'}': {
+						C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
+						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
+						C.tokens[C.current_token_index].str[i - 1] = '\0';
+						C.tokens[C.current_token_index].column = C.token_start;
+						C.tokens[C.current_token_index].line = C.line;
+						C.token_start = C.column;
+						C.current_token_index++;
+						for(int j = 0;j < i;j++) {
+							C.code_buffer[j] = '\0';
+						}
+						i = 0;
+						C.code_buffer[i] = c;
+						C.column++;
+						i++;
+						C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
+						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
+						C.tokens[C.current_token_index].str[i] = '\0';
+						C.tokens[C.current_token_index].column = C.token_start;
+						C.tokens[C.current_token_index].line = C.line;
+						C.token_start = C.column;
+						C.current_token_index++;
+						for(int j = 0;j < i;j++) {
+							C.code_buffer[j] = '\0';
+						}
+						i = -1;
+					} break;
+					default: {} break;
+				}
 				printf("[FATAL ERROR] Unsupported character, at %d:%d.", C.line, C.column);
 			}
-			c = fgetc(fptr);
+			c = fgetc(C.fptr);
 		}
 
 		// Parse code
