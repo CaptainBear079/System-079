@@ -39,15 +39,18 @@ typedef struct _CODE_OBJECT_ {
 typedef struct _COMPILER_ {
 	// Flags
 	int flags[3];                  // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
-	bool bflags[2];                // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate
-	bool bflagsArgs[1];            // 0 = Assemble Flag
+	bool bflags[3];                // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate, 2 = First error flag
+	bool bflagsArgs[2];            // 0 = Assemble Flag, 1 = List tokens (DEBBUG)
 
 	// Meta data
 	int column, line;              // Position
+	char* fName;                   // Name of compiled file
 	FILE* fptr;                    // File
+	int pcc_entries;
 
 	// Changing data
 	int token_start;               // Start column of the currently read token
+	int current_function;          // The next free function entry
 	int current_identifier;        // The next free identifier entry
 	int current_token_index;       // The next free token entry
 
@@ -223,14 +226,34 @@ int ParseCode(COMPILER* compiler) {
 					// Save the name of the variable/function in temp_code_object
 					temp_code_object.CODE_OBJECT_DATA.identifier = C->tokens[i].str;
 				}
+				
+				// Add the code object
+				C->pre_compiled_code[C->pcc_entries] = temp_code_object;
 
 				i++;
 				if(!(i < C->current_token_index)) {
 					break;
 				}
-				if(C->tokens[i].str[0] == '=') {}
+				if(C->tokens[i].str[0] == '=') {
+				    // "Set" or "Push to"
+				    if(C->tokens[i].str[1] == '\0') {
+				        // Set
+				    }
+				    else if(C->tokens[i].str[1] == '>') {
+				        // Push to
+				    }
+				    else {
+				        // Invalid
+				        if(C->bflags[2]) {
+				            printf("In file %s:", C->fName);
+				        }
+				        printf("at line %d, column %d: [ERROR] Invalid token \"%s\"\n", C->tokens[i].line, C->tokens[i].column, C->tokens[i].str);
+				        printf("|\n|  %s %s %s\n", C->tokens[i - 2].str, C->tokens[i - 1].str, C->tokens[i].str);
+				    }
+				}
 				else if(C->tokens[i].str[0] == '(') {
 					// Read argument list
+					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_ARG_LIST;
 				}
 			}
 		}
@@ -275,6 +298,9 @@ int Assemble(COMPILER* compiler) {
 
 	// Call assembler
 	system(assembler_call);
+	
+	// Clean up
+	free(assembler_call);
 	return 0;
 }
 
@@ -288,8 +314,8 @@ int main(int argc, char* argv[]) {
 	// Initalize compiler object
 	COMPILER compiler = {
 		/* Flags */ { 0, 0, 0 }, { false, false }, { false },
-		/* Meta data */ 1, 1, fopen(fileName, "r"),
-		/* Changing data */ 1, 0, 0,
+		/* Meta data */ 1, 1, fileName, fopen(fileName, "r"), -1,
+		/* Changing data */ 1, 0, 0, 0,
 		/* Assembler meta data*/ 4, "nasm", 1, NULL, NULL, 14, "./temp_asm.asm",
 		/* Limits */ 1024, 250, 450, 500,
 		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL
@@ -301,8 +327,9 @@ int main(int argc, char* argv[]) {
 	C.tokens = malloc(C.MAX_TOKENS * sizeof(Token));
 	C.functions = malloc(C.MAX_FUNCTIONS * sizeof(FUNCTION));
 	C.identifiers = malloc(C.MAX_IDENTIFIERS * sizeof(IDENTIFIER));
-	C.code_buffer = malloc(256 * sizeof(char));
+	C.code_buffer = malloc(257 * sizeof(char));
 	C.code_buffer[256] = '\0';
+	C.pre_compiled_code = malloc(2500 * sizeof(CODE_OBJECT));
 	bool done = false;                // While flag
 	int c = '\0';                     // Character holder
 
@@ -322,9 +349,7 @@ int main(int argc, char* argv[]) {
 				done = true;
 				// Save last token
 				if(C.code_buffer[0] != '\0') {
-					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i] = '\0';
+					C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 					C.tokens[C.current_token_index].column = C.token_start;
 					C.tokens[C.current_token_index].line = C.line;
 					C.token_start = C.column;
@@ -341,9 +366,7 @@ int main(int argc, char* argv[]) {
 				// Max token size reached
 				// Save token
 				if(C.code_buffer[0] != '\0') {
-					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i] = '\0';
+					C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 					C.tokens[C.current_token_index].column = C.token_start;
 					C.tokens[C.current_token_index].line = C.line;
 					C.token_start = C.column;
@@ -359,7 +382,10 @@ int main(int argc, char* argv[]) {
 					return -1;
 				}
 			}
-			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' || c == (int)'_' || c >= (int)'0' && c <= (int)'9' || c == (int)'=') {
+			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' ||
+			        c == (int)'_' || c >= (int)'0' && c <= (int)'9' || c == (int)'=' ||
+			        c == (int)'+' || c == (int)'!' || c == (int)'<' || c == (int)'>'
+			        ) {
 				// Save character
 				C.code_buffer[i] = c;
 				C.column++;
@@ -369,9 +395,7 @@ int main(int argc, char* argv[]) {
 				// Token ending character
 				// Save token
 				if(C.code_buffer[0] != '\0') {
-					C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-					strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-					C.tokens[C.current_token_index].str[i] = '\0';
+					C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 					C.tokens[C.current_token_index].column = C.token_start;
 					C.tokens[C.current_token_index].line = C.line;
 					C.token_start = C.column;
@@ -387,16 +411,16 @@ int main(int argc, char* argv[]) {
 				switch(c) {
 					// Calculation Opening/Caller Arg List Opening
 					case (int)'(': {
-						C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
-						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-						C.tokens[C.current_token_index].str[i - 1] = '\0';
-						C.tokens[C.current_token_index].column = C.token_start;
-						C.tokens[C.current_token_index].line = C.line;
-						C.token_start = C.column;
-						C.current_token_index++;
-						for(int j = 0;j < i;j++) {
-							C.code_buffer[j] = '\0';
-						}
+					    if(C.code_buffer[0] != '\0') {
+					    	C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+				    		C.tokens[C.current_token_index].column = C.token_start;
+						    C.tokens[C.current_token_index].line = C.line;
+					    	C.token_start = C.column;
+				    		C.current_token_index++;
+			    			for(int j = 0;j < i;j++) {
+		    					C.code_buffer[j] = '\0';
+	    					}
+					    }
 						C.code_buffer[0] = c;
 						C.column++;
 						i = 0;
@@ -406,9 +430,7 @@ int main(int argc, char* argv[]) {
 						C.code_buffer[i] = c;
 						C.column++;
 						i++;
-						C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
-						C.tokens[C.current_token_index].str[i] = '\0';
+						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
@@ -419,25 +441,26 @@ int main(int argc, char* argv[]) {
 						i = -1;
 					} break;
 					// Code Object/Object
-					case (int)'{':
+					case (int)'{': {
+					    goto CURLY_BRACKETS;
+					} break;
 					case (int)'}': {
-						C.tokens[C.current_token_index].str = malloc((i - 1) * sizeof(char));
-						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, (i - 1));
-						C.tokens[C.current_token_index].str[i - 1] = '\0';
-						C.tokens[C.current_token_index].column = C.token_start;
-						C.tokens[C.current_token_index].line = C.line;
-						C.token_start = C.column;
-						C.current_token_index++;
-						for(int j = 0;j < i;j++) {
-							C.code_buffer[j] = '\0';
-						}
+					    CURLY_BRACKETS:
+					    if(C.code_buffer[0] != '\0') {
+			    			C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+				    		C.tokens[C.current_token_index].column = C.token_start;
+					    	C.tokens[C.current_token_index].line = C.line;
+			    			C.token_start = C.column;
+				    		C.current_token_index++;
+					    	for(int j = 0;j < i;j++) {
+							    C.code_buffer[j] = '\0';
+						    }
+					    }
 						i = 0;
 						C.code_buffer[i] = c;
 						C.column++;
 						i++;
-						C.tokens[C.current_token_index].str = malloc(i * sizeof(char));
-						strncpy(C.tokens[C.current_token_index].str, C.code_buffer, i);
-						C.tokens[C.current_token_index].str[i] = '\0';
+						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
@@ -447,11 +470,19 @@ int main(int argc, char* argv[]) {
 						}
 						i = -1;
 					} break;
-					default: {} break;
+					default: {
+					    printf("[FATAL ERROR] Unsupported character, at %d:%d.", C.line, C.column);
+					} break;
 				}
-				printf("[FATAL ERROR] Unsupported character, at %d:%d.", C.line, C.column);
-			}
+		    }
 			c = fgetc(C.fptr);
+		}
+		
+		// Print tokens
+		for(int j = 0;j < C.current_token_index;j++) {
+		    printf("\"");
+		    printf(C.tokens[j].str);
+		    printf("\"\n");
 		}
 
 		// Parse code
@@ -466,5 +497,32 @@ int main(int argc, char* argv[]) {
 			Assemble(&C);
 		}
 	}
+	
+	// Clean up
+	free(C.fName);
+	free(C.ASSEMBLER);
+	free(C.assembler_flags_length);
+	free(C.assembler_flags);
+	free(C.temp_assembly_file);
+	for(int i = 0;i < C.current_token_index;i++) {
+	    free(C.tokens[i].str);
+	}
+	free(C.tokens);
+	for(int i = 0;i < C.current_function;i++) {
+	    free(C.functions[i].name);
+	}
+	free(C.functions);
+	for(int i = 0;i < C.current_identifier;i++) {
+	    free(C.identifiers[i].name);
+	}
+	free(C.identifiers);
+	free(C.list_of_types);
+	free(C.code_buffer);
+	for(int i = 0;i < C.pcc_entries;i++) {
+	    if(C.pre_compiled_code[i].type >= 0 && C.pre_compiled_code[i].type <= 20) {
+	        free(C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier);
+	    }
+	}
+	free(C.pre_compiled_code);
 	return 0;
 }
