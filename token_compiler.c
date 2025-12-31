@@ -31,7 +31,29 @@ typedef struct _CODE_OBJECT_ {
 	//  - variable declaration
 	//  - function declaration
 	int type; // See CODE_OBJECT_TYPE enum
-	union {
+	union CODE_OBJECT_DATA_ {
+		union COD_VALUE_ {
+			int int_value;
+			unsigned int uint_value;
+			long int longint_value;
+			unsigned long int ulongint_value;
+			long long int longlongint_value;
+			long long unsigned int ulonglongint_value;
+			short short_value;
+			unsigned short ushort_value;
+			char char_value;
+			unsigned char uchar_value;
+			char* string_value;
+			bool bool_value;
+			float float_value;
+			float ufloat_value;
+			double double_value;
+			double udouble_value;
+			long double longdouble_value;
+			long double ulongdouble_value;
+			void* ptr_value;
+			char* char_str_value;
+		} COD_VALUE;
 		char* identifier; // Identifier of variables or functions
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
@@ -118,7 +140,6 @@ enum CODE_OBJECT_TYPE {
 };
 
 #define C compiler
-#define fileName argv[1]
 
 int PreProcessor(COMPILER* compiler) {
 	// Pre-processor directives:
@@ -193,8 +214,11 @@ int ParseCode(COMPILER* compiler) {
 	// Split into sections ("__SEC_SCRIPT", "__SEC_SOURCE")
 	C->flags[2] = 0; // Current section: 0 = source, 1 = script
 	for(int i = 0;i < C->current_token_index;i++) {
+		if(!(i < C->current_token_index)) {
+			return 0;
+		}
 		// Check if change to script section is made
-		if(strcmp(C->tokens[i].str, "__SEC_SCRIPT") == 0) {
+		else if(strcmp(C->tokens[i].str, "__SEC_SCRIPT") == 0) {
 			C->flags[2] = 1; // Set section to script
 			continue;
 		}
@@ -232,12 +256,47 @@ int ParseCode(COMPILER* compiler) {
 
 				i++;
 				if(!(i < C->current_token_index)) {
-					break;
+					// Error
+					C->bflags[1] = false;
+					// Print error
+					printf("[ERROR] Definition incomplete. End of file.\n");
+					return -1;
 				}
 				if(C->tokens[i].str[0] == '=') {
+					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_INT;
 				    // "Set" or "Push to"
 				    if(C->tokens[i].str[1] == '\0') {
 				        // Set
+						// Get length of number string
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+						int length = 0;
+						for(int j = 0;C->tokens[i].str[j] != '\0';j++) {
+							length++;
+						}
+
+						// Convert to integer number
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
+
+						// Check for command end
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+
+						if(strcmp(C->tokens[i].str, ";") == 0) {
+							continue;
+						}
 				    }
 				    else if(C->tokens[i].str[1] == '>') {
 				        // Push to
@@ -304,6 +363,9 @@ int Assemble(COMPILER* compiler) {
 	return 0;
 }
 
+int compile(char* fileName, int maxTokens, int maxFunctions,
+	int maxIdentifiers, int maxErrors);
+
 int main(int argc, char* argv[]) {
 	// DEBUG: Argument chack
 	if(argc < 6) {
@@ -311,19 +373,26 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
+	return compile(argv[1], atoi(argv[5]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
+}
+
+int compile(char* fileName, int maxTokens, int maxFunctions,
+	int maxIdentifiers, int maxErrors) {
 	// Initalize compiler object
 	COMPILER compiler = {
 		/* Flags */ { 0, 0, 0 }, { false, false }, { false },
-		/* Meta data */ 1, 1, fileName, fopen(fileName, "r"), -1,
+		/* Meta data */ 1, 1, NULL, fopen(fileName, "r"), -1,
 		/* Changing data */ 1, 0, 0, 0,
-		/* Assembler meta data*/ 4, "nasm", 1, NULL, NULL, 14, "./temp_asm.asm",
+		/* Assembler meta data*/ 4, "nasm", 1, NULL, NULL, 14, NULL,
 		/* Limits */ 1024, 250, 450, 500,
 		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL
 	};
-	C.MAX_TOKENS = atoi(argv[5]);
-	C.MAX_FUNCTIONS = atoi(argv[2]);
-	C.MAX_IDENTIFIERS = atoi(argv[3]);
-	C.MAX_ERRORS = atoi(argv[4]);
+	C.fName = strdup(fileName);
+	C.temp_assembly_file = strdup("./temp_asm.asm");
+	C.MAX_TOKENS = maxTokens;
+	C.MAX_FUNCTIONS = maxFunctions;
+	C.MAX_IDENTIFIERS = maxIdentifiers;
+	C.MAX_ERRORS = maxErrors;
 	C.tokens = malloc(C.MAX_TOKENS * sizeof(Token));
 	C.functions = malloc(C.MAX_FUNCTIONS * sizeof(FUNCTION));
 	C.identifiers = malloc(C.MAX_IDENTIFIERS * sizeof(IDENTIFIER));
@@ -383,15 +452,14 @@ int main(int argc, char* argv[]) {
 				}
 			}
 			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' ||
-			        c == (int)'_' || c >= (int)'0' && c <= (int)'9' || c == (int)'=' ||
-			        c == (int)'+' || c == (int)'!' || c == (int)'<' || c == (int)'>'
+			        c == (int)'_' || c >= (int)'0' && c <= (int)'9'
 			        ) {
 				// Save character
 				C.code_buffer[i] = c;
 				C.column++;
 				
 			}
-			else if(c == (int)' ' || c == (int)';' || c == (int)'\n' || c == (int)'\t') {
+			else if(c == (int)' ' || c == (int)'\n' || c == (int)'\t') {
 				// Token ending character
 				// Save token
 				if(C.code_buffer[0] != '\0') {
@@ -405,12 +473,57 @@ int main(int argc, char* argv[]) {
 					}
 					i = -1;
 				}
+
+				// Update position
+				if(c == (int)' ') {
+					C.column++;
+				}
+				else if(c == (int)'\n') {
+					C.line++;
+					C.column = 1;
+				}
+				else if(c == (int)'\t') {
+					C.column = C.column + 4;
+				}
+
+				if(C.code_buffer[0] == '\0') {
+					i = -1;
+					C.token_start = C.column;
+				}
 			}
 			else {
 				// Other characters (Argument list, calculations, access, ...)
 				switch(c) {
-					// Calculation Opening/Caller Arg List Opening
-					case (int)'(': {
+					// End of command / = / + / ! / < / >
+					case (int)'=':
+					case (int)'+':
+					case (int)'!':
+					case (int)'<':
+					case (int)'>':
+					case (int)';': {
+						if(C.code_buffer[0] != '\0') {
+							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].column = C.token_start;
+							C.tokens[C.current_token_index].line = C.line;
+							C.token_start = C.column;
+							C.current_token_index++;
+							for(int j = 0;j < i;j++) {
+								C.code_buffer[j] = '\0';
+							}
+						}
+						C.code_buffer[0] = c;
+						C.column++;
+						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+						C.tokens[C.current_token_index].column = C.token_start;
+						C.tokens[C.current_token_index].line = C.line;
+						C.token_start = C.column;
+						C.current_token_index++;
+						C.code_buffer[0] = '\0';
+						i = -1;
+					} break;
+					// Calculation / Caller Arg List
+					case (int)'(':
+					case (int)')': {
 					    if(C.code_buffer[0] != '\0') {
 					    	C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 				    		C.tokens[C.current_token_index].column = C.token_start;
@@ -423,29 +536,18 @@ int main(int argc, char* argv[]) {
 					    }
 						C.code_buffer[0] = c;
 						C.column++;
-						i = 0;
-					} break;
-					// Calculation Closing/ Caller Arg List Closing
-					case (int)')': {
-						C.code_buffer[i] = c;
-						C.column++;
-						i++;
+						
 						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
 						C.current_token_index++;
-						for(int j = 0;j < i;j++) {
-							C.code_buffer[j] = '\0';
-						}
+						C.code_buffer[0] = '\0';
 						i = -1;
 					} break;
-					// Code Object/Object
-					case (int)'{': {
-					    goto CURLY_BRACKETS;
-					} break;
+					// Code Object / Object
+					case (int)'{':
 					case (int)'}': {
-					    CURLY_BRACKETS:
 					    if(C.code_buffer[0] != '\0') {
 			    			C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 				    		C.tokens[C.current_token_index].column = C.token_start;
@@ -456,22 +558,73 @@ int main(int argc, char* argv[]) {
 							    C.code_buffer[j] = '\0';
 						    }
 					    }
-						i = 0;
-						C.code_buffer[i] = c;
+						
+						C.code_buffer[0] = c;
 						C.column++;
-						i++;
+						
 						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
 						C.current_token_index++;
-						for(int j = 0;j < i;j++) {
-							C.code_buffer[j] = '\0';
+						C.code_buffer[0] = '\0';
+						i = -1;
+					} break;
+					// Division / Comment
+					case (int)'/': {
+						if(C.code_buffer[0] != '\0') {
+							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].column = C.token_start;
+							C.tokens[C.current_token_index].line = C.line;
+							C.current_token_index++;
+							for(int j = 0;j < i;j++) {
+								C.code_buffer[j] = '\0';
+							}
 						}
+						C.column++;
+						c = fgetc(C.fptr);
+						if(c == (int)'/') {
+							while(c != (int)'\n' && c != EOF) {
+								c = fgetc(C.fptr);
+								if(c == (int)'\n') {
+									C.line++;
+									C.column = 1;
+								}
+							}
+						}
+						else if(c == (int)'*') {
+							C.column++;
+							while(c != EOF) {
+								c = fgetc(C.fptr);
+								if(c == (int)'*') {
+									C.column++;
+									c = fgetc(C.fptr);
+									if(c == (int)'/') {
+										C.column++;
+										break;
+									}
+									else {
+										C.column++;
+									}
+								}
+								else if(c == (int)'\n') {
+									C.line++;
+									C.column = 1;
+								}
+								else if(c == (int)'\t') {
+									C.column = C.column + 4;
+								}
+								else {
+									C.column++;
+								}
+							}
+						}
+						C.token_start = C.column;
 						i = -1;
 					} break;
 					default: {
-					    printf("[FATAL ERROR] Unsupported character, at %d:%d.", C.line, C.column);
+					    printf("[FATAL ERROR] Unsupported character, at %d:%d.\n", C.line, C.column);
+						//return -1;
 					} break;
 				}
 		    }
@@ -482,7 +635,7 @@ int main(int argc, char* argv[]) {
 		for(int j = 0;j < C.current_token_index;j++) {
 		    printf("\"");
 		    printf(C.tokens[j].str);
-		    printf("\"\n");
+		    printf("\", start: %d\n", C.tokens[j].column);
 		}
 
 		// Parse code
@@ -516,7 +669,9 @@ int main(int argc, char* argv[]) {
 	    free(C.identifiers[i].name);
 	}
 	free(C.identifiers);
-	free(C.list_of_types);
+	if(C.list_of_types != NULL) {
+		free(C.list_of_types);
+	}
 	free(C.code_buffer);
 	for(int i = 0;i < C.pcc_entries;i++) {
 	    if(C.pre_compiled_code[i].type >= 0 && C.pre_compiled_code[i].type <= 20) {
