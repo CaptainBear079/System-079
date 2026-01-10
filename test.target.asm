@@ -2,6 +2,12 @@ section .data
 section .text
 global _start
 _start:
+    ; Zero out bss
+    mov rdi, bss_start
+    mov rcx, bss_end
+    sub rcx, rdi
+    xor rax, rax
+    rep stosb
     call main
     xor rdi, rdi
     mov rdi, rax
@@ -12,10 +18,9 @@ main:                              ; int main()
     push rbp
     mov rbp, rsp
 
-    ; With variable listing
-    ; mov dword [current_varlist_entry], int_main_x_0000
-    ; mov [current_varlist_entry+4], "x"
-    mov dword [int_main_x_0000], 0 ; x = int_main_x_0000 int x = 0;
+    ; With variable metadata (for debugging)
+    mov [rbp-1], 00100110b ; 2 bit unused, 1 bit signed, 5 bit type
+    mov [rbp-5], 0
 
     mov rax, 0                     ; return 0;
 
@@ -24,4 +29,6 @@ main:                              ; int main()
     ret
 
 section .bss
+bss_start:
+bss_end:
 section .rodata

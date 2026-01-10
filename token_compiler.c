@@ -10,9 +10,15 @@ typedef struct _Token_ {
 	int column;
 } Token;
 
+typedef struct _ARG_LIST_ {
+	int type;
+	char* name;
+} ARG_LIST;
+
 typedef struct _FUNCTION_ {
 	char* name;
 	unsigned long long id;
+	ARG_LIST* args;
 } FUNCTION;
 
 typedef struct _IDENTIFIER_ {
@@ -20,10 +26,10 @@ typedef struct _IDENTIFIER_ {
 	unsigned long long id;
 } IDENTIFIER;
 
-typedef struct _ARG_LIST_ {
-	int type;
+typedef struct _DEFINE_ {
 	char* name;
-} ARG_LIST;
+	char* value;
+} DEFINE;
 
 typedef struct _CODE_OBJECT_ {
 	// Represents a line of code
@@ -53,48 +59,57 @@ typedef struct _CODE_OBJECT_ {
 			long double ulongdouble_value;
 			void* ptr_value;
 			char* char_str_value;
+			struct _CODE_BLOCK_ {
+				int start;
+				int end;
+			} CODE_BLOCK;
 		} COD_VALUE;
 		char* identifier; // Identifier of variables or functions
+		unsigned long long address; // Address in memory 0 = unset (used as id for functions)
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
 
 typedef struct _COMPILER_ {
 	// Flags
-	int flags[3];                  // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
-	bool bflags[3];                // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate, 2 = First error flag
-	bool bflagsArgs[2];            // 0 = Assemble Flag, 1 = List tokens (DEBBUG)
+	int flags[3];                   // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
+	bool bflags[3];                 // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate, 2 = First error flag
+	bool bflagsArgs[3];             // 0 = Assemble Flag, 1 = List tokens (DEBBUG), 2 = Long return method (false = jump to end, true = delete stack frame and use 'ret')
 
 	// Meta data
-	int column, line;              // Position
-	char* fName;                   // Name of compiled file
-	FILE* fptr;                    // File
+	int column, line;               // Position
+	char* fName;                    // Name of compiled file
+	FILE* fptr;                     // File
 	int pcc_entries;
 
 	// Changing data
-	int token_start;               // Start column of the currently read token
-	int current_function;          // The next free function entry
-	int current_identifier;        // The next free identifier entry
-	int current_token_index;       // The next free token entry
+	int token_start;                // Start column of the currently read token
+	int current_function;           // The next free function entry
+	int current_identifier;         // The next free identifier entry
+	int current_define;             // The next free define entry
+	int current_token_index;        // The next free token entry
 
 	// Assembler meta data
-	int assembler_length;          // Default: 4;
-	char* ASSEMBLER;               // Default: "nasm"
+	int assembler_length;           // Default: 4;
+	char* ASSEMBLER;                // Default: "nasm"
 	int current_assembler_flag;
 	int* assembler_flags_length;
 	char** assembler_flags;
-	int temp_assembly_file_length; // Default: 14
-	char* temp_assembly_file;      // Default: "./temp_asm.asm"
+	int temp_assembly_file_length;  // Default: 14
+	char* temp_assembly_file;       // Default: "./temp_asm.asm"
 
 	// Limits
-	int MAX_TOKENS; // Max tokens: default 1024
-	int MAX_FUNCTIONS; // Max functions: default 250
-	int MAX_IDENTIFIERS; // Max identifiers: default 450
-	int MAX_ERRORS; // Max errors before terminating compiler: default 500
+	int MAX_TOKENS;                 // Max tokens: default 1024
+	int MAX_FUNCTIONS;              // Max functions: default 250
+	int MAX_IDENTIFIERS;            // Max identifiers: default 450
+	int MAX_ERRORS;                 // Max errors before terminating compiler: default 500
 
 	// Compilation data
+	FILE* temp_script_file;         // Temporary script file for script section
+	FILE* temp_assembly;            // Temporary assembly file for assembler output
 	Token* tokens;
 	FUNCTION* functions;
 	IDENTIFIER* identifiers;
+	DEFINE* defines;
 	int* list_of_types;
 	char* code_buffer;
 	CODE_OBJECT* pre_compiled_code; // Pre-compiled code (Next translation and optimization)
@@ -119,6 +134,8 @@ enum CODE_OBJECT_TYPE {
 	CODE_OBJECT_TYPE_LONGDOUBLE,        // 16 byte floating point number
 	CODE_OBJECT_TYPE_ULONGDOUBLE,       // Unsigned 16 byte floating point number
 	CODE_OBJECT_TYPE_POINTER,           // Pointer 4/8 byte depending on cpu bit mode
+	CODE_OBJECT_TYPE_POINTER_INT,       // Pointer to integer
+	CODE_OBJECT_TYPE_ARRAY,             // Array (Pointer) size = element size * number of elements
 	CODE_OBJECT_TYPE_STRUCT,            // Structure (Pointer)
 	CODE_OBJECT_TYPE_UNION,             // Union (Pointer) size = max member size
 	CODE_OBJECT_TYPE_ENUM,              // Enum (4 byte number) named integer constants
@@ -130,16 +147,71 @@ enum CODE_OBJECT_TYPE {
 	CODE_OBJECT_TYPE_LESS_EQUAL,        // Less than or equal operator '<='
 	CODE_OBJECT_TYPE_GREATER_EQUAL,     // Greater than or equal operator '>='
 	CODE_OBJECT_TYPE_SET,               // Assignment operator '='
+	CODE_OBJECT_TYPE_RETURN,            // Return statement
 	CODE_OBJECT_TYPE_IDENTIFIER_REF,    // Reference to a identifier
 	CODE_OBJECT_TYPE_FUNCTION_REF,      // Reference to a function
 	CODE_OBJECT_TYPE_NUMBER,            // Number
 	CODE_OBJECT_TYPE_IDENTIFIER,        // Identifier
+	CODE_OBJECT_TYPE_FUNCTION,          // Function declaration (needs ARG_LIST and CODE_BLOCK)
 	CODE_OBJECT_TYPE_CALCULATION,       // Calculation
 	CODE_OBJECT_TYPE_ARG_LIST,          // Argument list 
 	CODE_OBJECT_TYPE_CODE_BLOCK,        // Code block
 };
 
+#define MAX_DEFINES 256
 #define C compiler
+
+int convert_str_to_int(char* str) {
+	int result = 0;
+	bool negative = false;
+	int start_index = 0;
+
+	if(str[0] == '-') {
+		negative = true;
+		start_index = 1;
+	}
+
+	for(int i = start_index; str[i] != '\0'; i++) {
+		if(str[i] >= '0' && str[i] <= '9') {
+			result = result * 10 + (str[i] - '0');
+		}
+		else {
+			break;
+		}
+	}
+
+	if(negative) {
+		result = -result;
+	}
+
+	return result;
+}
+
+int convert_str_to_ullong(char* str) {
+	unsigned long long result = 0;
+	bool negative = false;
+	int start_index = 0;
+
+	if(str[0] == '-') {
+		negative = true;
+		start_index = 1;
+	}
+
+	for(int i = start_index; str[i] != '\0'; i++) {
+		if(str[i] >= '0' && str[i] <= '9') {
+			result = result * 10 + (str[i] - '0');
+		}
+		else {
+			break;
+		}
+	}
+
+	if(negative) {
+		result = (unsigned long long)(-((long long)result));
+	}
+
+	return result;
+}
 
 int PreProcessor(COMPILER* compiler) {
 	// Pre-processor directives:
@@ -166,7 +238,7 @@ int PreProcessor(COMPILER* compiler) {
 	//     Sets the title of the window. (MOSTLY WINDOWS GUI)
 	//   - USER:
 	//     Sets which user/user type is needed to run the program.
-	//     Options: "Root/Admin", "Any", "ProgramUser"
+	//     Options: "Root/Root" (SYS079 bootloader program only), "Root/Admin", "User/Any", "Background/ProgramUser"
 	//   - MAIN:
 	//     Sets the entry point.
 	//   - RANDOM:
@@ -181,27 +253,136 @@ int PreProcessor(COMPILER* compiler) {
 		printf("[ERROR] Could not create temporary pre-processed file.\n");
 		return -1;
 	}
+	FILE* originalFile = C->fptr;
 
 	// Find a pre-processor directive
+	bool included_file = false;
 	int c = fgetc(C->fptr);
-	while(c != EOF) {
-		if(c == (int)'#') {
-			// Read directive
-			char directive_buffer[32] = { 0 };
-			c = fgetc(C->fptr);
-			switch(c) {
-				case (int)'i': {
-					//
+	do {
+		included_file = false;
+		while(c != EOF) {
+			if(c == (int)'#') {
+				// Read directive
+				char directive_buffer[33] = { 0 };
+				directive_buffer[32] = '\0';
+				c = fgetc(C->fptr);
+				for(int i = 0; isalpha(c) && i < 32; i++) {
+					if(c == EOF) {
+						printf("[ERROR] Unexpected end of file in pre-processor directive.\n");
+						return -1;
+					}
+					directive_buffer[i] = (char)c;
+					c = fgetc(C->fptr);
+				}
+
+				if(strcmp(directive_buffer, "include") == 0) {
+					// Include file
+					included_file = true;
+					// Skip whitespace
+					while(c == (int)' ' || c == (int)'\t') {
+						c = fgetc(C->fptr);
+					}
+				
+					// Read file name
+					char include_file_name[256] = { 0 };
+					include_file_name[255] = '\0';
+					int index = 0;
+					if(c == (int)'"' || c == (int)'<') {
+						int end_char = (c == (int)'"') ? (int)'"' : (int)'>';
+						c = fgetc(C->fptr);
+						while(c != end_char && c != EOF && index < 255) {
+							include_file_name[index++] = (char)c;
+							c = fgetc(C->fptr);
+						}
+						include_file_name[index] = '\0';
+						if(c != end_char) {
+							printf("[ERROR] Unterminated include file name.\n");
+							return -1;
+						}
+					}
+					else {
+						printf("[ERROR] Invalid include directive format.\n");
+						return -1;
+					}
+
+					// Open and read the include file
+					FILE* include_file = fopen(include_file_name, "r");
+					if(include_file == NULL) {
+						printf("[ERROR] Could not open include file: %s\n", include_file_name);
+						return -1;
+					}
+					int inc_c = fgetc(include_file);
+					while(inc_c != EOF) {
+						fputc(inc_c, preProcessedFile);
+						inc_c = fgetc(include_file);
+					}
+					fclose(include_file);
+				}
+				else if(strcmp(directive_buffer, "define") == 0) {
+					// Define macro
+					// Skip whitespace
+					while(c == (int)' ' || c == (int)'\t') {
+						c = fgetc(C->fptr);
+					}
+
+					// Read identifier
+					char define_identifier[64] = { 0 };
+					define_identifier[63] = '\0';
+					int index = 0;
+					while((isalnum(c) || c == (int)'_') && c != EOF && index < 63) {
+						define_identifier[index++] = (char)c;
+						c = fgetc(C->fptr);
+					}
+					define_identifier[index] = '\0';
+				
+					// Skip whitespace
+					while(c == (int)' ' || c == (int)'\t') {
+						c = fgetc(C->fptr);
+					}
+
+					// Read value
+					char define_value[256] = { 0 };
+					define_value[255] = '\0';
+					index = 0;
+					while(c != EOF && index < 255) {
+						define_value[index++] = (char)c;
+						c = fgetc(C->fptr);
+						if(c == (int)'\n') {
+							if(define_value[index - 1] == '\\') {
+								c = fgetc(C->fptr);
+							}
+							else {
+								break;
+							}
+						}
+					}
+					define_value[index] = '\0';
+
+					// Store the define
+					if(C->current_define < MAX_DEFINES) {
+						C->defines[C->current_define].name = strdup(define_identifier);
+						C->defines[C->current_define].value = strdup(define_value);
+						C->current_define++;
+					}
+					else {
+						printf("[ERROR] Maximum number of defines reached.\n");
+						return -1;
+					}
+				}
+				else {
+					printf("[ERROR] Unknown pre-processor directive: %s\n", directive_buffer);
+					return -1;
 				}
 			}
+			else {
+				// Write character to pre-processed file
+				fputc(c, preProcessedFile);
+			}
+			c = fgetc(C->fptr);
 		}
-		else {
-			// Write character to pre-processed file
-			fputc(c, preProcessedFile);
-		}
-		c = fgetc(C->fptr);
-	}
-	fclose(C->fptr);
+		C->fptr = preProcessedFile;
+	} while(included_file);
+	fclose(originalFile);
 	C->fptr = preProcessedFile;
 	rewind(C->fptr);
 	return 0;
@@ -226,11 +407,122 @@ int ParseCode(COMPILER* compiler) {
 			C->flags[2] = 0; // Section didn't change
 			continue;
 		}
+		else if(C->flags[2]) {
+			// Create/Reopen temporary script file
+			C->temp_script_file = fopen("./temp_script.script", "a+");
+			if(C->temp_script_file == NULL) {
+				printf("[ERROR] Could not create temporary script file.\n");
+				return -1;
+			}
+			// Write token to script file
+			fprintf(C->temp_script_file, "%s ", C->tokens[i].str);
+
+			fclose(C->temp_script_file);
+		}
 		// Inside or outside function
 		else if(C->bflags[0]) {
 			// Currently parsing inside a function
 			if(strcmp(C->tokens[i].str, "int") == 0) {
-				// Integer variable
+				// Global integer variable or function declaration
+				i++;
+				if(!(i < C->current_token_index)) {
+					// Error
+					C->bflags[1] = false;
+					// Print error
+					printf("[ERROR] Definition incomplete. End of file.\n");
+					return -1;
+				}
+				
+				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
+					// Save the name of the variable/function in temp_code_object
+					temp_code_object.CODE_OBJECT_DATA.identifier = C->tokens[i].str;
+				}
+		
+				// Add the code object
+				C->pre_compiled_code[C->pcc_entries] = temp_code_object;
+
+				i++;
+				if(!(i < C->current_token_index)) {
+					// Error
+					C->bflags[1] = false;
+					// Print error
+					printf("[ERROR] Definition incomplete. End of file.\n");
+					return -1;
+				}
+				if(strcmp(C->tokens[i].str, "=") == 0) {
+					i++;
+					if(!(i < C->current_token_index)) {
+						// Error
+						C->bflags[1] = false;
+						// Print error
+						printf("[ERROR] Definition incomplete. End of file.\n");
+						return -1;
+					}
+					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_INT;
+					// "Set" or "Push to Address"
+					if(strcmp(C->tokens[i].str, ">") == 0) {
+						// Push to Address
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+						C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_POINTER_INT;
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = convert_str_to_ullong(C->tokens[i].str);
+
+						// Check for command end
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+
+						if(strcmp(C->tokens[i].str, ";") == 0) {
+							C->pcc_entries++;
+							continue;
+						}
+					}
+					else {
+						// Set
+						// Get length of number string
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+						int length = 0;
+						for(int j = 0;C->tokens[i].str[j] != '\0';j++) {
+							length++;
+						}
+
+						// Convert to integer number
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
+
+						// Check for command end
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+
+						if(strcmp(C->tokens[i].str, ";") == 0) {
+							C->pcc_entries++;
+							continue;
+						}
+					}
+				}
 			}
 		}
 		else {
@@ -262,11 +554,47 @@ int ParseCode(COMPILER* compiler) {
 					printf("[ERROR] Definition incomplete. End of file.\n");
 					return -1;
 				}
-				if(C->tokens[i].str[0] == '=') {
+				if(strcmp(C->tokens[i].str, "=") == 0) {
+					i++;
+					if(!(i < C->current_token_index)) {
+						// Error
+						C->bflags[1] = false;
+						// Print error
+						printf("[ERROR] Definition incomplete. End of file.\n");
+						return -1;
+					}
 					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_INT;
-				    // "Set" or "Push to"
-				    if(C->tokens[i].str[1] == '\0') {
-				        // Set
+					// "Set" or "Push to Address"
+					if(strcmp(C->tokens[i].str, ">") == 0) {
+						// Push to Address
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+						C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_POINTER_INT;
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = convert_str_to_ullong(C->tokens[i].str);
+
+						// Check for command end
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+
+						if(strcmp(C->tokens[i].str, ";") == 0) {
+							C->pcc_entries++;
+							continue;
+						}
+					}
+					else {
+						// Set
 						// Get length of number string
 						i++;
 						if(!(i < C->current_token_index)) {
@@ -295,39 +623,153 @@ int ParseCode(COMPILER* compiler) {
 						}
 
 						if(strcmp(C->tokens[i].str, ";") == 0) {
+							C->pcc_entries++;
 							continue;
 						}
-				    }
-				    else if(C->tokens[i].str[1] == '>') {
-				        // Push to
-				    }
-				    else {
-				        // Invalid
-				        if(C->bflags[2]) {
-				            printf("In file %s:", C->fName);
-				        }
-				        printf("at line %d, column %d: [ERROR] Invalid token \"%s\"\n", C->tokens[i].line, C->tokens[i].column, C->tokens[i].str);
-				        printf("|\n|  %s %s %s\n", C->tokens[i - 2].str, C->tokens[i - 1].str, C->tokens[i].str);
-				    }
+					}
 				}
-				else if(C->tokens[i].str[0] == '(') {
+				else if(strcmp(C->tokens[i].str, "(") == 0) {
 					// Read argument list
-					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_ARG_LIST;
+					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_FUNCTION;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = C->current_function;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.CODE_BLOCK.start = i;
+					C->functions[C->current_function].name = temp_code_object.CODE_OBJECT_DATA.identifier;
+					C->functions[C->current_function].id = C->pcc_entries;
+					
+					// Read args
+					i++;
+					if(!(i < C->current_token_index)) {
+						// Error
+						C->bflags[1] = false;
+						// Print error
+						printf("[ERROR] Definition incomplete. End of file.\n");
+						return -1;
+					}
+					// Count args
+					int arg_count = 1;
+					for(int j = i;j < C->current_token_index;j++) {
+						if(strcmp(C->tokens[j].str, ")") == 0) {
+							break;
+						}
+						else if(strcmp(C->tokens[j].str, ",") == 0) {
+							arg_count++;
+						}
+					}
+					C->functions[C->current_function].args = malloc(arg_count * sizeof(ARG_LIST));
+					if(C->functions[C->current_function].args == NULL) {
+						return -1;
+					}
+					// Read args
+					for(int j = 0;j < arg_count;j++) {
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+						// Save arg type
+						if(strcmp(C->tokens[i].str, "int") == 0) {
+							C->functions[C->current_function].args[j].type = CODE_OBJECT_TYPE_INT;
+						}
+						else {
+							// Unsupported type
+							C->bflags[1] = false;
+							printf("[ERROR] Unsupported argument type: %s\n", C->tokens[i].str);
+							return -1;
+						}
+
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+
+						// Save arg name
+						C->functions[C->current_function].args[j].name = strdup(C->tokens[i].str);
+
+						i++;
+						if(!(i < C->current_token_index)) {
+							// Error
+							C->bflags[1] = false;
+							// Print error
+							printf("[ERROR] Definition incomplete. End of file.\n");
+							return -1;
+						}
+					}
+					// Update function end
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.CODE_BLOCK.end = i;
+					C->current_function++;
+					C->pcc_entries++;
 				}
+			}
+			else if(strcmp(C->tokens[i].str, "return") == 0) {
+				// Return statement
+				i++;
+				if(!(i < C->current_token_index)) {
+					// Error
+					C->bflags[1] = false;
+					// Print error
+					printf("[ERROR] Definition incomplete. End of file.\n");
+					return -1;
+				}
+				C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_RETURN;
+				C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
 			}
 		}
 	}
+	return 0;
 }
 
 int Translate(COMPILER* compiler) {
-	switch(C->pre_compiled_code->type) {
-		case CODE_OBJECT_TYPE_INT: {
-			// IDK.
-		} break;
-		default: {
-			printf("[ERROR] Kinks.\n");
-		} break;
+	// Open temporary assembly file
+	C->temp_assembly = fopen(C->temp_assembly_file, "w+");
+	if(!C->temp_assembly) {
+		printf("[ERROR] Could not create/reopen temporary assembly file.\n");
+		return -1;
 	}
+	// Write assembly header (no calling main now)
+	fputs("section .data\nsection .text\nglobal _start\n_start:\n\tmov rdi, bss_start\n\tmov rcx, bss_end\n\tsub rcx, rdi\n\txor rax, rax\n\trep stosb", C->temp_assembly);
+	// Reopen for appending
+	fclose(C->temp_assembly);
+	C->temp_assembly = fopen(C->temp_assembly_file, "a+");
+	if(!C->temp_assembly) {
+		printf("[ERROR] Could not create/reopen temporary assembly file.\n");
+		return -1;
+	}
+	// Read global variable definitions
+	for(int i = 0;i < C->pcc_entries;i++) {
+		switch(C->pre_compiled_code[i].type) {
+			case CODE_OBJECT_TYPE_INT: {
+				// Add global variable of type integer
+				// Check for standard value
+				if(C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value != 0) {
+					fprintf(C->temp_assembly, "\tmov [%d], %d\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.address, C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value);
+				}
+			} break;
+		}
+	}
+	for(int i = 0;i < C->pcc_entries;i++) {
+		switch(C->pre_compiled_code[i].type) {
+			case CODE_OBJECT_TYPE_INT: {
+				// IDK.
+			} break;
+			case CODE_OBJECT_TYPE_RETURN: {
+				//
+			} break;
+			case CODE_OBJECT_TYPE_FUNCTION: {
+				//
+			} break;
+			default: {
+				printf("[ERROR] Kinks.\n");
+			} break;
+		}
+	}
+	fclose(C->temp_assembly);
 }
 
 int Assemble(COMPILER* compiler) {
@@ -381,14 +823,15 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 	// Initalize compiler object
 	COMPILER compiler = {
 		/* Flags */ { 0, 0, 0 }, { false, false }, { false },
-		/* Meta data */ 1, 1, NULL, fopen(fileName, "r"), -1,
-		/* Changing data */ 1, 0, 0, 0,
-		/* Assembler meta data*/ 4, "nasm", 1, NULL, NULL, 14, NULL,
+		/* Meta data */ 1, 1, NULL, fopen(fileName, "r"), 0,
+		/* Changing data */ 1, 0, 0, 0, 0,
+		/* Assembler meta data*/ 4, NULL, 1, NULL, NULL, 14, NULL,
 		/* Limits */ 1024, 250, 450, 500,
-		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL
+		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 	};
 	C.fName = strdup(fileName);
 	C.temp_assembly_file = strdup("./temp_asm.asm");
+	C.ASSEMBLER = strdup("nasm");
 	C.MAX_TOKENS = maxTokens;
 	C.MAX_FUNCTIONS = maxFunctions;
 	C.MAX_IDENTIFIERS = maxIdentifiers;
@@ -399,6 +842,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 	C.code_buffer = malloc(257 * sizeof(char));
 	C.code_buffer[256] = '\0';
 	C.pre_compiled_code = malloc(2500 * sizeof(CODE_OBJECT));
+	C.defines = malloc(MAX_DEFINES * sizeof(DEFINE));
 	bool done = false;                // While flag
 	int c = '\0';                     // Character holder
 
@@ -452,8 +896,8 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 				}
 			}
 			else if(c >= (int)'A' && c <= (int)'Z' || c >= (int)'a' && c <= (int)'z' ||
-			        c == (int)'_' || c >= (int)'0' && c <= (int)'9'
-			        ) {
+					c == (int)'_' || c >= (int)'0' && c <= (int)'9'
+					) {
 				// Save character
 				C.code_buffer[i] = c;
 				C.column++;
@@ -524,16 +968,16 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					// Calculation / Caller Arg List
 					case (int)'(':
 					case (int)')': {
-					    if(C.code_buffer[0] != '\0') {
-					    	C.tokens[C.current_token_index].str = strdup(C.code_buffer);
-				    		C.tokens[C.current_token_index].column = C.token_start;
-						    C.tokens[C.current_token_index].line = C.line;
-					    	C.token_start = C.column;
-				    		C.current_token_index++;
-			    			for(int j = 0;j < i;j++) {
-		    					C.code_buffer[j] = '\0';
-	    					}
-					    }
+						if(C.code_buffer[0] != '\0') {
+							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].column = C.token_start;
+							C.tokens[C.current_token_index].line = C.line;
+							C.token_start = C.column;
+							C.current_token_index++;
+							for(int j = 0;j < i;j++) {
+								C.code_buffer[j] = '\0';
+							}
+						}
 						C.code_buffer[0] = c;
 						C.column++;
 						
@@ -548,16 +992,16 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					// Code Object / Object
 					case (int)'{':
 					case (int)'}': {
-					    if(C.code_buffer[0] != '\0') {
-			    			C.tokens[C.current_token_index].str = strdup(C.code_buffer);
-				    		C.tokens[C.current_token_index].column = C.token_start;
-					    	C.tokens[C.current_token_index].line = C.line;
-			    			C.token_start = C.column;
-				    		C.current_token_index++;
-					    	for(int j = 0;j < i;j++) {
-							    C.code_buffer[j] = '\0';
-						    }
-					    }
+						if(C.code_buffer[0] != '\0') {
+							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].column = C.token_start;
+							C.tokens[C.current_token_index].line = C.line;
+							C.token_start = C.column;
+							C.current_token_index++;
+							for(int j = 0;j < i;j++) {
+								C.code_buffer[j] = '\0';
+							}
+						}
 						
 						C.code_buffer[0] = c;
 						C.column++;
@@ -623,19 +1067,19 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 						i = -1;
 					} break;
 					default: {
-					    printf("[FATAL ERROR] Unsupported character, at %d:%d.\n", C.line, C.column);
+						printf("[FATAL ERROR] Unsupported character, at %d:%d.\n", C.line, C.column);
 						//return -1;
 					} break;
 				}
-		    }
+			}
 			c = fgetc(C.fptr);
 		}
 		
 		// Print tokens
 		for(int j = 0;j < C.current_token_index;j++) {
-		    printf("\"");
-		    printf(C.tokens[j].str);
-		    printf("\", start: %d\n", C.tokens[j].column);
+			printf("\"");
+			printf(C.tokens[j].str);
+			printf("\", start: %d\n", C.tokens[j].column);
 		}
 
 		// Parse code
@@ -658,15 +1102,15 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 	free(C.assembler_flags);
 	free(C.temp_assembly_file);
 	for(int i = 0;i < C.current_token_index;i++) {
-	    free(C.tokens[i].str);
+		free(C.tokens[i].str);
 	}
 	free(C.tokens);
 	for(int i = 0;i < C.current_function;i++) {
-	    free(C.functions[i].name);
+		free(C.functions[i].name);
 	}
 	free(C.functions);
 	for(int i = 0;i < C.current_identifier;i++) {
-	    free(C.identifiers[i].name);
+		free(C.identifiers[i].name);
 	}
 	free(C.identifiers);
 	if(C.list_of_types != NULL) {
@@ -674,9 +1118,9 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 	}
 	free(C.code_buffer);
 	for(int i = 0;i < C.pcc_entries;i++) {
-	    if(C.pre_compiled_code[i].type >= 0 && C.pre_compiled_code[i].type <= 20) {
-	        free(C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier);
-	    }
+		if(C.pre_compiled_code[i].type >= 0 && C.pre_compiled_code[i].type <= 20) {
+			free(C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier);
+		}
 	}
 	free(C.pre_compiled_code);
 	return 0;

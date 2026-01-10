@@ -1,3 +1,5 @@
+int var = 0;
+
 int main() {
 	// varlist = add the variable in a global list (mostly for scripting and debugging)
 	// int = type of the variable
