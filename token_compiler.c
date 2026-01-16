@@ -66,6 +66,7 @@ typedef struct _CODE_OBJECT_ {
 		} COD_VALUE;
 		char* identifier; // Identifier of variables or functions
 		unsigned long long address; // Address in memory 0 = unset (used as id for functions)
+		int asm_identifier;
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
 
@@ -95,13 +96,15 @@ typedef struct _COMPILER_ {
 	int* assembler_flags_length;
 	char** assembler_flags;
 	int temp_assembly_file_length;  // Default: 14
-	char* temp_assembly_file;       // Default: "./temp_asm.asm"
+	char* temp_assembly_file;       // Default: "./build/ChaosLangCompiler/temp_asm.asm"
 
 	// Limits
 	int MAX_TOKENS;                 // Max tokens: default 1024
 	int MAX_FUNCTIONS;              // Max functions: default 250
 	int MAX_IDENTIFIERS;            // Max identifiers: default 450
 	int MAX_ERRORS;                 // Max errors before terminating compiler: default 500
+	int MAX_DEFINES;                // Max defines: default 250
+	int MAX_ASM_ID;                 // Max assembly identifiers: default 700
 
 	// Compilation data
 	FILE* temp_script_file;         // Temporary script file for script section
@@ -113,6 +116,7 @@ typedef struct _COMPILER_ {
 	int* list_of_types;
 	char* code_buffer;
 	CODE_OBJECT* pre_compiled_code; // Pre-compiled code (Next translation and optimization)
+	char** asm_identifier_list;     // All identifiers used in assembly
 } COMPILER;
 
 enum CODE_OBJECT_TYPE {
@@ -158,7 +162,6 @@ enum CODE_OBJECT_TYPE {
 	CODE_OBJECT_TYPE_CODE_BLOCK,        // Code block
 };
 
-#define MAX_DEFINES 256
 #define C compiler
 
 int convert_str_to_int(char* str) {
@@ -248,7 +251,7 @@ int PreProcessor(COMPILER* compiler) {
 	//     Sets which defines are needed to compile the program.
 
 	// Create/Reopen a temporary file for the pre-processed code
-	FILE* preProcessedFile = fopen("./temp_preprocessed.pre", "w+");
+	FILE* preProcessedFile = fopen("./build/ChaosLangCompiler/temp_preprocessed.pre", "w+");
 	if(preProcessedFile == NULL) {
 		printf("[ERROR] Could not create temporary pre-processed file.\n");
 		return -1;
@@ -359,7 +362,7 @@ int PreProcessor(COMPILER* compiler) {
 					define_value[index] = '\0';
 
 					// Store the define
-					if(C->current_define < MAX_DEFINES) {
+					if(C->current_define < C->MAX_DEFINES) {
 						C->defines[C->current_define].name = strdup(define_identifier);
 						C->defines[C->current_define].value = strdup(define_value);
 						C->current_define++;
@@ -732,7 +735,7 @@ int Translate(COMPILER* compiler) {
 		printf("[ERROR] Could not create/reopen temporary assembly file.\n");
 		return -1;
 	}
-	// Write assembly header (no calling main now)
+	// Write assembly header (no calling main for now, just zero out bss)
 	fputs("section .data\nsection .text\nglobal _start\n_start:\n\tmov rdi, bss_start\n\tmov rcx, bss_end\n\tsub rcx, rdi\n\txor rax, rax\n\trep stosb", C->temp_assembly);
 	// Reopen for appending
 	fclose(C->temp_assembly);
@@ -747,8 +750,9 @@ int Translate(COMPILER* compiler) {
 			case CODE_OBJECT_TYPE_INT: {
 				// Add global variable of type integer
 				// Check for standard value
+				fprintf(C->temp_assembly, "\tmov [%s], 00100110b\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.asm_identifier);
 				if(C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value != 0) {
-					fprintf(C->temp_assembly, "\tmov [%d], %d\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.address, C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value);
+					fprintf(C->temp_assembly, "\tmov [%s], %d\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.asm_identifier, C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value);
 				}
 			} break;
 		}
@@ -826,11 +830,11 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 		/* Meta data */ 1, 1, NULL, fopen(fileName, "r"), 0,
 		/* Changing data */ 1, 0, 0, 0, 0,
 		/* Assembler meta data*/ 4, NULL, 1, NULL, NULL, 14, NULL,
-		/* Limits */ 1024, 250, 450, 500,
-		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+		/* Limits */ 1024, 250, 450, 500,250, 700,
+		/* Compilation data */ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 	};
 	C.fName = strdup(fileName);
-	C.temp_assembly_file = strdup("./temp_asm.asm");
+	C.temp_assembly_file = strdup("./build/ChaosLangCompiler/temp_asm.asm");
 	C.ASSEMBLER = strdup("nasm");
 	C.MAX_TOKENS = maxTokens;
 	C.MAX_FUNCTIONS = maxFunctions;
@@ -842,7 +846,8 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 	C.code_buffer = malloc(257 * sizeof(char));
 	C.code_buffer[256] = '\0';
 	C.pre_compiled_code = malloc(2500 * sizeof(CODE_OBJECT));
-	C.defines = malloc(MAX_DEFINES * sizeof(DEFINE));
+	C.asm_identifier_list = malloc(C.MAX_ASM_ID * sizeof(char*));
+	C.defines = malloc(C.MAX_DEFINES * sizeof(DEFINE));
 	bool done = false;                // While flag
 	int c = '\0';                     // Character holder
 
@@ -1084,6 +1089,12 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 
 		// Parse code
 		ParseCode(&C);
+
+		system("clear");
+		// Print pre-compiled code
+		for(int i = 0;i < C.pcc_entries;i++) {
+			printf("\"%s\", type: %d\n", C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier, C.pre_compiled_code[i].type);
+		}
 
 		// Translate
 		Translate(&C);
