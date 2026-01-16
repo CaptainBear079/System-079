@@ -14,6 +14,4 @@ typedef struct _VARIANTS_ {
     char** Variants;
 } VARIANTS;
 
-int MakeTrainingsData();
-
 int Bot();
