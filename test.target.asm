@@ -1,3 +1,19 @@
+;
+; ChaosLang target assembly examples
+;     by Hacklord Captain Bear (CaptainBear079 on GitHub)
+;     Email: louis.ritz12@gmail.com
+;
+; ------ Warning and License/Terms of Use --------
+; !!! THIS CODE IS PROVIDED AS IT IS, DO NOT TRY TO SUE US !!!
+; !!! THIS CODE IS JUST A EXAMPLE, DO NOT ASSEMBLE AND/OR RUN IT !!!
+; This example shows how ChaosLang looks when translated to assembly.
+; By comtinuing to read and/or use this code you agree to the following:
+; 1. You understand that this code is for educational purposes only.
+; 2. You take full responsibility for any damage caused by the assembled and/or run code.
+; 3. You will not spread this code without this notice.
+; 4. You will not spread a modified version of this code without clearly marking it as modifies.
+; 5. You will not use this code for content farming, like calling this code bad or spreading misinformation.
+;
 section .data
 section .text
 global _start
