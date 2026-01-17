@@ -31,6 +31,22 @@ typedef struct _DEFINE_ {
 	char* value;
 } DEFINE;
 
+typedef struct _PCC__INT_ {
+	bool global;                       // Indicates if the integer is global or local (0 = local, 1 = global)
+	int type;                          // Indicates the size of the integer (char, short, int, long int, long long int/long long)
+	char* identifier;                  // Name of the integer
+	long long value;                   // Standard value of the integer
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC_INT;
+
+typedef struct _PCC__UINT_ {
+	bool global;                       // Indicates if the integer is global or local (0 = local, 1 = global)
+	int type;                          // Indicates the size of the integer (char, short, int, long int, long long int/long long)
+	char* identifier;                  // Name of the integer
+	unsigned long long value;                   // Standard value of the integer
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC_UINT;
+
 typedef struct _CODE_OBJECT_ {
 	// Represents a line of code
 	// Supported:
@@ -39,8 +55,6 @@ typedef struct _CODE_OBJECT_ {
 	int type; // See CODE_OBJECT_TYPE enum
 	union CODE_OBJECT_DATA_ {
 		union COD_VALUE_ {
-			int int_value;
-			unsigned int uint_value;
 			long int longint_value;
 			unsigned long int ulongint_value;
 			long long int longlongint_value;
@@ -64,8 +78,6 @@ typedef struct _CODE_OBJECT_ {
 				int end;
 			} CODE_BLOCK;
 		} COD_VALUE;
-		char* identifier; // Identifier of variables or functions
-		unsigned long long address; // Address in memory 0 = unset (used as id for functions)
 		int asm_identifier;
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
