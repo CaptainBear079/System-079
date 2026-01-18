@@ -4,12 +4,6 @@
 #include <random>
 #include <thread>
 
-// Temp core.chaosstudios.net
-#include "core.chaosstudios.net.h"
-
-// Custom Headers
-#include "BanSupervisor.hpp"
-
 // Definitions
 #define SelfHost 0
 
