@@ -15,37 +15,93 @@ typedef struct _ARG_LIST_ {
 	char* name;
 } ARG_LIST;
 
-typedef struct _FUNCTION_ {
-	char* name;
-	unsigned long long id;
-	ARG_LIST* args;
-} FUNCTION;
-
 typedef struct _IDENTIFIER_ {
 	char* name;
 	unsigned long long id;
 } IDENTIFIER;
+
+typedef struct _FUNCTION_ {
+	char* name;
+	unsigned long long id;
+	ARG_LIST* args;
+	IDENTIFIER* local_identifiers;
+} FUNCTION;
 
 typedef struct _DEFINE_ {
 	char* name;
 	char* value;
 } DEFINE;
 
+typedef struct _PCC__BOOL_ {
+	bool global;                       // Indicates if the boolean is global or local (0 = local, 1 = global)
+	char* identifier;                  // Name of the boolean
+	char* asm_identifier;              // Name that will be used in assembly
+	bool value;                        // Standard value of the boolean
+	int group[2];                      // First index (0) saves in which byte group (every eight bool becomes a byte group) the bool is saved, second (1) saves which bit
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC__BOOL;
+
 typedef struct _PCC__INT_ {
 	bool global;                       // Indicates if the integer is global or local (0 = local, 1 = global)
 	int type;                          // Indicates the size of the integer (char, short, int, long int, long long int/long long)
 	char* identifier;                  // Name of the integer
+	char* asm_identifier;              // Name that will be used in assembly
 	long long value;                   // Standard value of the integer
 	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
-} PCC_INT;
+} PCC__INT;
 
 typedef struct _PCC__UINT_ {
 	bool global;                       // Indicates if the integer is global or local (0 = local, 1 = global)
-	int type;                          // Indicates the size of the integer (char, short, int, long int, long long int/long long)
+	int type;                          // Indicates the size of the integer (uchar, ushort, uint, ulong int, ulong long int/ulong long)
 	char* identifier;                  // Name of the integer
-	unsigned long long value;                   // Standard value of the integer
+	char* asm_identifier;              // Name that will be used in assembly
+	unsigned long long value;          // Standard value of the integer
 	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
-} PCC_UINT;
+} PCC__UINT;
+
+typedef struct _PCC__FLOAT_ {
+	bool global;                       // Indicates if the float is global or local (0 = local, 1 = global)
+	int type;                          // Indicates the size of the float (float, double, long double)
+	char* identifier;                  // Name of the float
+	char* asm_identifier;              // Name that will be used in assembly
+	long double value;                 // Standard value of the float
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC__FLOAT;
+
+typedef struct _PCC__UFLOAT_ {
+	bool global;                       // Indicates if the float is global or local (0 = local, 1 = global)
+	int type;                          // Indicates the size of the float (ufloat, udouble, ulong double)
+	char* identifier;                  // Name of the float
+	char* asm_identifier;              // Name that will be used in assembly
+	long double value;                 // Standard value of the float
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC__UFLOAT;
+
+typedef struct _PCC__STRINGS_ {
+	bool global;                       // Indicates if the char is global or local (0 = local, 1 = global)
+	int type;                          // Indicates if string or single character
+	char* identifier;                  // Name of the char
+	char* asm_identifier;              // Name that will be used in assembly
+	union _VALUE_ {                    // Standard value of the char
+		char value;
+		unsigned char uvalue;
+		char* str_value;
+	} VALUE;
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} _PCC__STRINGS_;
+
+typedef struct _PCC__POINTER_ {
+	bool global;                       // Indicates if the pointer is global or local (0 = local, 1 = global)
+	bool array;                        // Indicates if the pointer is an array pointer.
+	int type;                          // Indicates the type the pointer points to.
+	char* identifier;                  // Name of the pointer
+	char* asm_identifier;              // Name that will be used in assembly
+	union _VALUE_ { // Standard value of the pointer
+		unsigned long long value;
+		unsigned long long* array_values;
+	} VALUE;
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC__POINTER;
 
 typedef struct _CODE_OBJECT_ {
 	// Represents a line of code
@@ -54,31 +110,12 @@ typedef struct _CODE_OBJECT_ {
 	//  - function declaration
 	int type; // See CODE_OBJECT_TYPE enum
 	union CODE_OBJECT_DATA_ {
-		union COD_VALUE_ {
-			long int longint_value;
-			unsigned long int ulongint_value;
-			long long int longlongint_value;
-			long long unsigned int ulonglongint_value;
-			short short_value;
-			unsigned short ushort_value;
-			char char_value;
-			unsigned char uchar_value;
-			char* string_value;
-			bool bool_value;
-			float float_value;
-			float ufloat_value;
-			double double_value;
-			double udouble_value;
-			long double longdouble_value;
-			long double ulongdouble_value;
-			void* ptr_value;
-			char* char_str_value;
-			struct _CODE_BLOCK_ {
-				int start;
-				int end;
-			} CODE_BLOCK;
-		} COD_VALUE;
-		int asm_identifier;
+		PCC__BOOL* _bool;
+		PCC__INT* _int;
+		PCC__UINT* _uint;
+		PCC__FLOAT* _float;
+		PCC__UFLOAT* _ufloat;
+		PCC__POINTER* _pointer;
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
 
@@ -404,9 +441,6 @@ int PreProcessor(COMPILER* compiler) {
 }
 
 int ParseCode(COMPILER* compiler) {
-	// Variables
-	CODE_OBJECT temp_code_object;
-
 	// Split into sections ("__SEC_SCRIPT", "__SEC_SOURCE")
 	C->flags[2] = 0; // Current section: 0 = source, 1 = script
 	for(int i = 0;i < C->current_token_index;i++) {
@@ -450,11 +484,8 @@ int ParseCode(COMPILER* compiler) {
 				
 				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
 					// Save the name of the variable/function in temp_code_object
-					temp_code_object.CODE_OBJECT_DATA.identifier = C->tokens[i].str;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->identifier = C->tokens[i].str;
 				}
-		
-				// Add the code object
-				C->pre_compiled_code[C->pcc_entries] = temp_code_object;
 
 				i++;
 				if(!(i < C->current_token_index)) {
@@ -486,7 +517,7 @@ int ParseCode(COMPILER* compiler) {
 							return -1;
 						}
 						C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_POINTER_INT;
-						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = convert_str_to_ullong(C->tokens[i].str);
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->target_address = convert_str_to_ullong(C->tokens[i].str);
 
 						// Check for command end
 						i++;
@@ -520,7 +551,7 @@ int ParseCode(COMPILER* compiler) {
 						}
 
 						// Convert to integer number
-						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->value = convert_str_to_int(C->tokens[i].str);
 
 						// Check for command end
 						i++;
@@ -555,11 +586,8 @@ int ParseCode(COMPILER* compiler) {
 				
 				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
 					// Save the name of the variable/function in temp_code_object
-					temp_code_object.CODE_OBJECT_DATA.identifier = C->tokens[i].str;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->identifier = C->tokens[i].str;
 				}
-				
-				// Add the code object
-				C->pre_compiled_code[C->pcc_entries] = temp_code_object;
 
 				i++;
 				if(!(i < C->current_token_index)) {
@@ -591,7 +619,7 @@ int ParseCode(COMPILER* compiler) {
 							return -1;
 						}
 						C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_POINTER_INT;
-						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = convert_str_to_ullong(C->tokens[i].str);
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->target_address = convert_str_to_ullong(C->tokens[i].str);
 
 						// Check for command end
 						i++;
@@ -625,7 +653,7 @@ int ParseCode(COMPILER* compiler) {
 						}
 
 						// Convert to integer number
-						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
+						C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->value = convert_str_to_int(C->tokens[i].str);
 
 						// Check for command end
 						i++;
@@ -733,7 +761,7 @@ int ParseCode(COMPILER* compiler) {
 					return -1;
 				}
 				C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_RETURN;
-				C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.int_value = convert_str_to_int(C->tokens[i].str);
+				C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->value = convert_str_to_int(C->tokens[i].str);
 			}
 		}
 	}
@@ -762,9 +790,9 @@ int Translate(COMPILER* compiler) {
 			case CODE_OBJECT_TYPE_INT: {
 				// Add global variable of type integer
 				// Check for standard value
-				fprintf(C->temp_assembly, "\tmov [%s], 00100110b\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.asm_identifier);
-				if(C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value != 0) {
-					fprintf(C->temp_assembly, "\tmov [%s], %d\n", C->pre_compiled_code[i].CODE_OBJECT_DATA.asm_identifier, C->pre_compiled_code[i].CODE_OBJECT_DATA.COD_VALUE.int_value);
+				fprintf(C->temp_assembly, "\tmov [%s], 00100110b\n", C->pre_compiled_code[i].CODE_OBJECT_DATA._int->asm_identifier);
+				if(C->pre_compiled_code[i].CODE_OBJECT_DATA._int->value != 0) {
+					fprintf(C->temp_assembly, "\tmov [%s], %d\n", C->pre_compiled_code[i].CODE_OBJECT_DATA._int->asm_identifier, C->pre_compiled_code[i].CODE_OBJECT_DATA._int->value);
 				}
 			} break;
 		}
@@ -1101,12 +1129,6 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 
 		// Parse code
 		ParseCode(&C);
-
-		system("clear");
-		// Print pre-compiled code
-		for(int i = 0;i < C.pcc_entries;i++) {
-			printf("\"%s\", type: %d\n", C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier, C.pre_compiled_code[i].type);
-		}
 
 		// Translate
 		Translate(&C);
