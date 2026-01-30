@@ -1,7 +1,7 @@
 ;
 ; ChaosLang target assembly examples
 ;     by Hacklord Captain Bear (CaptainBear079 on GitHub)
-;     Email: louis.ritz12@gmail.com
+;     Email: hacklordcaptainbear@gmail.com
 ;
 ; ------ Warning and License/Terms of Use --------
 ; !!! THIS CODE IS PROVIDED AS IT IS, DO NOT TRY TO SUE US !!!

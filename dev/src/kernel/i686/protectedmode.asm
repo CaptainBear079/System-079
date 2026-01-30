@@ -1,7 +1,7 @@
 ;
 ; System 079 BootManagerloader v1.0.0
 ; Date: 08 August 2025 Written by Captain Bear
-; Email: louis.ritz12@gmail.com
+; Email: hacklordcaptainbear@gmail.com
 ; GitHub: https://github.com/CaptainBear079/System-079
 ;
 ; By using, copying, or/and modifying this code, or the assembled machine code, you agree to the following:
