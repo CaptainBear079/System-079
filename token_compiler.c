@@ -6,6 +6,7 @@
 
 typedef struct _Token_ {
 	char* str;
+	int length;
 	int line;
 	int column;
 } Token;
@@ -82,13 +83,13 @@ typedef struct _PCC__STRINGS_ {
 	int type;                          // Indicates if string or single character
 	char* identifier;                  // Name of the char
 	char* asm_identifier;              // Name that will be used in assembly
-	union _VALUE_ {                    // Standard value of the char
+	union _STRINGS_VALUE_ {                    // Standard value of the char
 		char value;
 		unsigned char uvalue;
 		char* str_value;
-	} VALUE;
+	} STRINGS_VALUE;
 	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
-} _PCC__STRINGS_;
+} PCC__STRINGS;
 
 typedef struct _PCC__POINTER_ {
 	bool global;                       // Indicates if the pointer is global or local (0 = local, 1 = global)
@@ -96,12 +97,22 @@ typedef struct _PCC__POINTER_ {
 	int type;                          // Indicates the type the pointer points to.
 	char* identifier;                  // Name of the pointer
 	char* asm_identifier;              // Name that will be used in assembly
-	union _VALUE_ { // Standard value of the pointer
+	union _POINTER_VALUE_ { // Standard value of the pointer
 		unsigned long long value;
 		unsigned long long* array_values;
-	} VALUE;
+	} POINTER_VALUE;
 	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
 } PCC__POINTER;
+
+typedef struct _PCC__CODE_BLOCK_ {
+	int return_type;                   // Type of the return value
+	int start_index;                   // Start index in pre-compiled code
+	int end_index;                     // End index in pre-compiled code
+	int function_index;                // Index of the function in the function table
+	char* identifier;                  // Name of the function/code block
+	char* asm_identifier;              // Name that will be used in assembly
+	unsigned long long target_address; // Target address offset for runtime memory space, 0 = not set (gets generated before translation)
+} PCC_CODE_BLOCK;
 
 typedef struct _CODE_OBJECT_ {
 	// Represents a line of code
@@ -115,14 +126,16 @@ typedef struct _CODE_OBJECT_ {
 		PCC__UINT* _uint;
 		PCC__FLOAT* _float;
 		PCC__UFLOAT* _ufloat;
+		PCC__STRINGS* _string;
 		PCC__POINTER* _pointer;
+		PCC_CODE_BLOCK* _code_block;
 	} CODE_OBJECT_DATA;
 } CODE_OBJECT;
 
 typedef struct _COMPILER_ {
 	// Flags
 	int flags[3];                   // 0 = Interpretation path, 1 = Functions complexity level (0 = no functions, 1 = functions used), 2 = Current section (0 = source, 1 = script)
-	bool bflags[3];                 // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate, 2 = First error flag
+	bool bflags[4];                 // 0 = In-/Outside function (true = In-, false = Outside), 1 = Optimize and translate, 2 = First error flag, 3 = End not set
 	bool bflagsArgs[3];             // 0 = Assemble Flag, 1 = List tokens (DEBBUG), 2 = Long return method (false = jump to end, true = delete stack frame and use 'ret')
 
 	// Meta data
@@ -472,7 +485,7 @@ int ParseCode(COMPILER* compiler) {
 		else if(C->bflags[0]) {
 			// Currently parsing inside a function
 			if(strcmp(C->tokens[i].str, "int") == 0) {
-				// Global integer variable or function declaration
+				// Local integer variable declaration
 				i++;
 				if(!(i < C->current_token_index)) {
 					// Error
@@ -481,6 +494,8 @@ int ParseCode(COMPILER* compiler) {
 					printf("[ERROR] Definition incomplete. End of file.\n");
 					return -1;
 				}
+
+				PCC__INT _int = {0};
 				
 				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
 					// Save the name of the variable/function in temp_code_object
@@ -583,10 +598,12 @@ int ParseCode(COMPILER* compiler) {
 					printf("[ERROR] Definition incomplete. End of file.\n");
 					return -1;
 				}
+
+				char* temp_identifier = C->tokens[i].str;
 				
 				if(isalpha(C->tokens[i].str[0]) || C->tokens[i].str[0] == '_') {
 					// Save the name of the variable/function in temp_code_object
-					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->identifier = C->tokens[i].str;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._int->identifier = temp_identifier;
 				}
 
 				i++;
@@ -674,9 +691,10 @@ int ParseCode(COMPILER* compiler) {
 				else if(strcmp(C->tokens[i].str, "(") == 0) {
 					// Read argument list
 					C->pre_compiled_code[C->pcc_entries].type = CODE_OBJECT_TYPE_FUNCTION;
-					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.address = C->current_function;
-					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.CODE_BLOCK.start = i;
-					C->functions[C->current_function].name = temp_code_object.CODE_OBJECT_DATA.identifier;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._code_block->return_type = CODE_OBJECT_TYPE_INT;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._code_block->identifier = temp_identifier;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._code_block->function_index = C->current_function;
+					C->functions[C->current_function].name = temp_identifier;
 					C->functions[C->current_function].id = C->pcc_entries;
 					
 					// Read args
@@ -745,9 +763,33 @@ int ParseCode(COMPILER* compiler) {
 						}
 					}
 					// Update function end
-					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA.COD_VALUE.CODE_BLOCK.end = i;
-					C->current_function++;
 					C->pcc_entries++;
+					C->pre_compiled_code[C->pcc_entries].CODE_OBJECT_DATA._code_block->start_index = C->pcc_entries;
+					while (strcmp(C->tokens[i].str, "{") != 0) {
+						int curly_brace_count = 0;
+						int j = i;
+						while(strcmp(C->tokens[j].str, "}") != 0 && curly_brace_count <= 0) {
+							j++;
+							if(!(j < C->current_token_index)) {
+								// Error
+								C->bflags[1] = false;
+								// Print error
+								printf("[ERROR] Definition incomplete. End of file.\n");
+								return -1;
+							}
+							if(strcmp(C->tokens[j].str, "{") == 0) {
+								curly_brace_count++;
+							}
+							else if(strcmp(C->tokens[j].str, "}") == 0) {
+								curly_brace_count--;
+							}
+						}
+						C->bflags[0] = true; // Inside function
+						C->bflags[3] = true; // End not set
+						i++;
+					}
+					C->current_function++;
+					
 				}
 			}
 			else if(strcmp(C->tokens[i].str, "return") == 0) {
@@ -925,6 +967,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 				// Save token
 				if(C.code_buffer[0] != '\0') {
 					C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+					C.tokens[C.current_token_index].length = i + 1;
 					C.tokens[C.current_token_index].column = C.token_start;
 					C.tokens[C.current_token_index].line = C.line;
 					C.token_start = C.column;
@@ -953,6 +996,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 				// Save token
 				if(C.code_buffer[0] != '\0') {
 					C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+					C.tokens[C.current_token_index].length = i + 1;
 					C.tokens[C.current_token_index].column = C.token_start;
 					C.tokens[C.current_token_index].line = C.line;
 					C.token_start = C.column;
@@ -992,6 +1036,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					case (int)';': {
 						if(C.code_buffer[0] != '\0') {
 							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].length = i + 1;
 							C.tokens[C.current_token_index].column = C.token_start;
 							C.tokens[C.current_token_index].line = C.line;
 							C.token_start = C.column;
@@ -1003,6 +1048,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 						C.code_buffer[0] = c;
 						C.column++;
 						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+						C.tokens[C.current_token_index].length = 1;
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
@@ -1015,6 +1061,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					case (int)')': {
 						if(C.code_buffer[0] != '\0') {
 							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].length = i + 1;
 							C.tokens[C.current_token_index].column = C.token_start;
 							C.tokens[C.current_token_index].line = C.line;
 							C.token_start = C.column;
@@ -1027,6 +1074,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 						C.column++;
 						
 						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+						C.tokens[C.current_token_index].length = 1;
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
@@ -1039,6 +1087,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					case (int)'}': {
 						if(C.code_buffer[0] != '\0') {
 							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].length = i + 1;
 							C.tokens[C.current_token_index].column = C.token_start;
 							C.tokens[C.current_token_index].line = C.line;
 							C.token_start = C.column;
@@ -1052,6 +1101,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 						C.column++;
 						
 						C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+						C.tokens[C.current_token_index].length = 1;
 						C.tokens[C.current_token_index].column = C.token_start;
 						C.tokens[C.current_token_index].line = C.line;
 						C.token_start = C.column;
@@ -1063,6 +1113,7 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 					case (int)'/': {
 						if(C.code_buffer[0] != '\0') {
 							C.tokens[C.current_token_index].str = strdup(C.code_buffer);
+							C.tokens[C.current_token_index].length = i + 1;
 							C.tokens[C.current_token_index].column = C.token_start;
 							C.tokens[C.current_token_index].line = C.line;
 							C.current_token_index++;
@@ -1162,11 +1213,6 @@ int compile(char* fileName, int maxTokens, int maxFunctions,
 		free(C.list_of_types);
 	}
 	free(C.code_buffer);
-	for(int i = 0;i < C.pcc_entries;i++) {
-		if(C.pre_compiled_code[i].type >= 0 && C.pre_compiled_code[i].type <= 20) {
-			free(C.pre_compiled_code[i].CODE_OBJECT_DATA.identifier);
-		}
-	}
 	free(C.pre_compiled_code);
 	return 0;
 }
