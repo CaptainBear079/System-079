@@ -1,5 +1,5 @@
 # Introduction
-In this project we are building an operating system and AI from scratch. We optimize the OS and tools for privacy, AI and robotic use.
+In this project we are building an operating system from scratch. We optimize the OS for privacy, AI and robotic use. We also have different tools for the operating system.
 
 ### Please read the LICENSE file and installation instruction section. By downloading or any kind of copying you agree with the license, it's conditions and that you know what you are doing.
 
@@ -7,25 +7,22 @@ In this project we are building an operating system and AI from scratch. We opti
 Operating System:
 - Bootloader stage two loading (raw binary).
 - Kernel binary loading (raw binary, no system stuff yet).
-- Compiler for custom C-like programming language (ChaosLang).
 
 # Coming up
 - Basic text based kernel
 - Basic file system
-- First compiler release
-- Basic AI tools
 
 # Tools
 For development used tools are:
 - High level programming:
   - [GCC](https://gcc.gnu.org/) - GNU Compiler Collection
   - [G++](https://gcc.gnu.org/) - GNU C++ Compiler (included in GCC)
-  - ChaosLang - Our custom programming language (high level modules)
+  - [ChaosLang](https://github.com/CaptainBear079/ChaosLang/) - Our custom programming language (high level modules)
 - Low level programming:
   - [Make](https://www.gnu.org/software/make/) - Build automation tool (for GCC toolchain and automated building)
   - [GCC](https://gcc.gnu.org/) - GNU Compiler Collection custom built for cross compiling
   - [G++](https://gcc.gnu.org/) - GNU C++ Compiler custom built for cross compiling (included in GCC)
-  - ChaosLang - Our custom programming language (low level modules)
+  - [ChaosLang](https://github.com/CaptainBear079/ChaosLang/) - Our custom programming language (low level modules)
   - [NASM](https://www.nasm.us/) - Netwide Assembler
   - A virtual machine of your choice
   - A virtual machine with debugger (like [Bochs](https://bochs.sourceforge.io/))
@@ -33,18 +30,12 @@ For development used tools are:
 # Installation instruction
 If you want to build it yourself please go to the section "Building from source".
 
-## OS Installation
 1. Download the latest release.
 2. Burn the ISO image to a USB drive, SSD/HDD or DVD.
 3. Plug in the installation media and restart your computer (you might need to change your boot order).
 4. Follow the instructions to complete the installation.
 
-## Installing our custom tools
-1. Download the latest release for your tool.
-2. Start the installer and follow the instructions.
-3. After installation, you might need to add the tool's installation directory to your system's PATH environment variable.
-
-# Building from source
+# Building from source (not working is being set up)
 1. Download and unpack the source code from the release page.
 2. Make sure you have dependencies installed and toolchain built (see Tools section and the release sites dependency list).
 3. Open a terminal and navigate to the project directory.
