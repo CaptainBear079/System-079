@@ -42,3 +42,7 @@ If you want to build it yourself please go to the section "Building from source"
 4. Run the build script "build.sh" (Linux/MacOS) or "build.bat" (Windows).
 5. Run the make command for the tool your trying to build (see release page).
 6. After the build process is complete, you can find the compiled binaries in the "build" directory.
+
+# Other projects
+- [ChaosLang](https://github.com/CaptainBear079/ChaosLang/) - Our custom programming language.
+- [ChaosGUI](https://github.com/CaptainBear079/ChaosGUI/) - Our custom console/terminal for System 079 and other platforms.
